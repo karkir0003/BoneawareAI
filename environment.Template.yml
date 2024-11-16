@@ -1,0 +1,12 @@
+name: boneaware-ai
+channels:
+  - defaults
+dependencies:
+  - numpy
+  - pyyaml=5.4.1
+  - matplotlib
+  - boto3
+  - configparser
+  - torch==1.13.1
+  - tqdm
+  - jupyter

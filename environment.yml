@@ -4,9 +4,18 @@ channels:
 dependencies:
   - numpy
   - pyyaml=5.4.1
+  - scipy
   - matplotlib
   - boto3
   - configparser
-  - torch==1.13.1
   - tqdm
   - jupyter
+  - pytorch
+  - future
+  - tensorflow
+  - keras
+  - scikit-learn
+  - pip
+  - pip:
+      - torch==1.13.1
+      - torchvision
