@@ -241,7 +241,9 @@ def load_data(data_dir, batch_size=32):
     )
     valid_dataset = MURADataset(
         valid_image_csv, valid_label_csv, valid_dir,
-        transform=get_transforms(train=False)  # Standard validation transform
+        transform=get_transforms(train=False),  # Validation-style transform for originals
+        augmentation_transforms=augmentation_transforms,  # Use same augmentation as training
+        include_original=True  # Include original images
     )
 
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, worker_init_fn=lambda _: set_seed(42))  # Ensure workers are seeded properly)
