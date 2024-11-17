@@ -8,6 +8,7 @@ import torch
 import random
 import numpy as np
 import sys
+from collections import Counter
 sys.path.append('../src')  # Add the 'src' folder to Python's module search path
 sys.path.append('../datasets')  # Add the 'datasets' folder to Python's module search path
 sys.path.append('../notebooks')  # Add the 'notebooks' folder to Python's module search path
@@ -108,26 +109,37 @@ class MURADataset(Dataset):
         """
         # Determine whether this is an original or augmented sample
         original_idx = idx % len(self.image_paths)
-        augmentation_idx = idx // len(self.image_paths) - 1        
-        
+        augmentation_idx = idx // len(self.image_paths) - 1
+
         # Get the image path from the CSV
         img_path = self.image_paths[original_idx]
 
         # Remove any leading dataset directory prefix, like "MURA-v1.1/"
         if img_path.startswith("MURA-v1.1/"):
-            img_path = img_path[len("MURA-v1.1/"):]  # Strip "MURA-v1.1/" from the start
+            img_path = img_path[len("MURA-v1.1/"):]
 
-        # Remove any leading dataset directory prefix, like "train/"
+        # Remove any leading dataset directory prefix, like "train/" or "valid/"
         if img_path.startswith("train/"):
-            img_path = img_path[len("train/"):]  # Strip "train/" from the start            
-        # Remove any leading dataset directory prefix, like "valid/"
+            img_path = img_path[len("train/"):]
+            prefix = "MURA-v1.1/train/"
         elif img_path.startswith("valid/"):
-            img_path = img_path[len("valid/"):]  # Strip "valid/" from the start            
+            img_path = img_path[len("valid/"):]
+            prefix = "MURA-v1.1/valid/"
+        else:
+            raise ValueError(f"Invalid image path: {img_path}")
 
         # Construct the full image path
         full_img_path = os.path.normpath(os.path.join(self.root_dir, img_path))
-        relative_study_dir = os.path.dirname(img_path)
-        label = self.labels.get(relative_study_dir, -1)
+
+        # Construct the full key to query the labels dictionary
+        relative_study_dir = os.path.dirname(img_path).replace("\\", "/")  # Normalize slashes
+        full_study_dir_key = f"{prefix}{relative_study_dir}/"  # Add the correct prefix and ensure trailing slash
+        #print("Full study directory key being queried:", full_study_dir_key)  # Debugging
+
+        # Fetch the label from `self.labels`
+        label = self.labels.get(full_study_dir_key, -1)  # Default to -1 if the key is not found
+        if label == -1:
+            raise KeyError(f"Label not found for {full_study_dir_key}. Please check your dataset and labels.")
 
         # Load the image
         image = Image.open(full_img_path).convert("RGB")
@@ -257,14 +269,166 @@ def load_data(data_dir, batch_size=32):
     return train_loader, valid_loader
 
 
-# Main execution (example)
-if __name__ == "__main__":
-    data_dir = "datasets/MURA-v1.1"
-    batch_size = 32
+def confirm_images_and_labels(loader, dataset_name):
+    """
+    Confirms that all images and labels in a DataLoader are properly loaded.
 
-    train_loader = load_data(data_dir, batch_size=batch_size)
+    Parameters:
+        loader (DataLoader): The DataLoader for the dataset.
+        dataset_name (str): The name of the dataset ('train' or 'valid').
+    """
+    total_images = 0
+    all_labels = []
 
-    # Quick check
-    for images, labels in train_loader:
-        print(f"Batch size: {len(images)}, Labels: {labels}")
-        break
+    print(f"Checking {dataset_name} dataset...")
+    for images, labels in loader:
+        total_images += len(images)
+        all_labels.extend(labels.numpy())  # Collect labels as a flat list
+
+    unique_labels = np.unique(all_labels)  # Use NumPy for unique label extraction
+    print(f"Total {dataset_name} images: {total_images}")
+    print(f"Unique labels in {dataset_name} dataset: {unique_labels.tolist()}\n")
+
+def count_body_parts(dataset, dataset_name):
+    """
+    Counts occurrences of each body part in the dataset.
+
+    Parameters:
+        dataset (MURADataset): The dataset object.
+        dataset_name (str): The name of the dataset ('train' or 'valid').
+    """
+    body_parts = []
+    for image_path in dataset.image_paths:
+        # Extract the folder name directly after 'train/' or 'valid/'
+        if "train" in image_path:
+            body_part = image_path.split("train/")[1].split("/")[0]
+        elif "valid" in image_path:
+            body_part = image_path.split("valid/")[1].split("/")[0]
+        else:
+            body_part = "Unknown"  # Fallback case if the path structure is unexpected
+        body_parts.append(body_part)
+
+    # Use NumPy or collections.Counter for counting
+    counts = Counter(body_parts)
+    print(f"{dataset_name.capitalize()} dataset body part distribution:")
+    for part, count in counts.items():
+        print(f"{part}: {count}")
+    print()
+    
+def count_body_parts_with_augmentations(dataset, dataset_name, num_augmentations):
+    """
+    Counts occurrences of each body part in the dataset, including augmented samples.
+
+    Parameters:
+        dataset (MURADataset): The dataset object.
+        dataset_name (str): The name of the dataset ('train' or 'valid').
+        num_augmentations (int): The number of augmentations applied per image.
+    """
+    body_parts = []
+    for image_path in dataset.image_paths:
+        if "train" in image_path:
+            body_part = image_path.split("train/")[1].split("/")[0]
+        elif "valid" in image_path:
+            body_part = image_path.split("valid/")[1].split("/")[0]
+        else:
+            body_part = "Unknown"
+        body_parts.append(body_part)
+
+    # Count original occurrences
+    counts = Counter(body_parts)
+
+    print(f"{dataset_name.capitalize()} dataset body part distribution (with augmentations):")
+    for part, count in counts.items():
+        augmented_count = count * (1 + num_augmentations)  # Original + augmented
+        print(f"{part}: Original: {count}, Augmented: {augmented_count}")
+    print()
+    
+def count_positive_negative(dataset, dataset_name, num_augmentations=0):
+    """
+    Counts positive and negative cases for each body part in the dataset, including augmented samples.
+
+    Parameters:
+        dataset (MURADataset): The dataset object.
+        dataset_name (str): The name of the dataset ('train' or 'valid').
+        num_augmentations (int): Number of augmentations applied per image.
+
+    Returns:
+        None
+    """
+    # Extract body parts and labels as NumPy arrays
+    body_parts = []
+    labels = []
+
+    # Normalize all keys in the labels dictionary to use forward slashes
+    normalized_labels = {
+        key.replace("\\", "/"): value for key, value in dataset.labels.items()
+    }
+
+    #print("Labels dictionary keys (first 5):")
+    #print(list(normalized_labels.keys())[:5])  # Debugging: print some keys from normalized labels
+
+    for path in dataset.image_paths:
+        # Extract the body part from the path (e.g., XR_ELBOW, XR_SHOULDER)
+        if "train" in path:
+            body_part = path.split("train/")[1].split("/")[0]
+        elif "valid" in path:
+            body_part = path.split("valid/")[1].split("/")[0]
+        else:
+            body_part = "Unknown"
+
+        # Get the corresponding label
+        study_dir = os.path.dirname(path).replace("\\", "/")  # Normalize to forward slashes
+        study_dir_key = study_dir + "/"  # Ensure trailing slash
+        #print("Study directory key being queried:")
+        #print(study_dir_key)  # Debugging: print the constructed study_dir_key
+
+        # Query the normalized labels dictionary
+        label = normalized_labels.get(study_dir_key, None)  # Default to None if the key is missing
+        if label is None:
+            raise KeyError(f"Key not found for study_dir: {study_dir_key}")
+        body_parts.append(body_part)
+        labels.append(label)
+
+    # Convert to NumPy arrays for vectorized operations
+    body_parts = np.array(body_parts)
+    labels = np.array(labels)
+
+    unique_parts = np.unique(body_parts)
+    counts = {}
+
+    # Vectorized counting
+    for part in unique_parts:
+        part_mask = (body_parts == part)  # Boolean mask for the current body part
+        part_labels = labels[part_mask]
+        positive_count = np.sum(part_labels == 1)  # Count positives
+        negative_count = np.sum(part_labels == 0)  # Count negatives
+
+        # Include augmented data in the counts
+        augmented_positive = positive_count * (1 + num_augmentations)
+        augmented_negative = negative_count * (1 + num_augmentations)
+
+        counts[part] = {
+            "positive": positive_count,
+            "negative": negative_count,
+            "augmented_positive": augmented_positive,
+            "augmented_negative": augmented_negative,
+        }
+
+    # Print the results
+    print(f"{dataset_name.capitalize()} dataset positive/negative distribution (with augmentations):")
+    for part, count in counts.items():
+        print(f"{part}: Positive: {count['positive']} (Augmented: {count['augmented_positive']}), "
+              f"Negative: {count['negative']} (Augmented: {count['augmented_negative']})")
+    print()
+
+# # Main execution (example)
+# if __name__ == "__main__":
+#     data_dir = "datasets/MURA-v1.1"
+#     batch_size = 32
+
+#     train_loader = load_data(data_dir, batch_size=batch_size)
+
+#     # Quick check
+#     for images, labels in train_loader:
+#         print(f"Batch size: {len(images)}, Labels: {labels}")
+#         break
