@@ -1,6 +1,5 @@
 name: boneaware-ai
 channels:
-  - pytorch
   - defaults
 dependencies:
   - numpy
@@ -8,6 +7,6 @@ dependencies:
   - matplotlib
   - boto3
   - configparser
-  - pytorch==1.13.1
+  - torch==1.13.1
   - tqdm
   - jupyter
