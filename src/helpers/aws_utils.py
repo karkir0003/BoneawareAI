@@ -2,7 +2,7 @@ import boto3
 import configparser
 import os
 from botocore.exceptions import NoCredentialsError, ClientError
-from constants import BONEAWAREAI_DATA_ACCESS_ROLE, BONEAWAREAI_DATA_ACCESS_SESSION, BONEAWAREAI_S3_BUCKET, DATASETS_FOLDER
+from constants import BONEAWAREAI_DATA_ACCESS_ROLE, BONEAWAREAI_DATA_ACCESS_SESSION
 from helpers.utils import zip_folder
 
 def get_aws_credentials():
