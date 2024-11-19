@@ -3,10 +3,10 @@ BONEAWAREAI_DATA_ACCESS_ROLE = "arn:aws:iam::377035982439:role/boneawareai-data-
 BONEAWAREAI_DATA_ACCESS_SESSION = "boneawareai-data-session"
 
 # Buckets
-BONEAWAREAI_S3_BUCKET = 'boneaware-ai'
+BONEAWAREAI_S3_BUCKET = "boneaware-ai"
 
 # Dataset folder
-DATASETS_FOLDER = 'datasets'
+DATASETS_FOLDER = "datasets"
 
 # Datasets
-MURA_DATASET = 'MURA-v1.1.zip'
+MURA_DATASET = "MURA-v1.1.zip"

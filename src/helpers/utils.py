@@ -1,4 +1,4 @@
-import zipfile 
+import zipfile
 import os
 import shutil 
 
@@ -10,7 +10,7 @@ def unzip_file(path):
     - path: path to .zip file
     """
     curr_directory = os.path.dirname(path)
-    with zipfile.ZipFile(path, 'r') as zip_file:
+    with zipfile.ZipFile(path, "r") as zip_file:
         zip_file.extractall(curr_directory)
     print(f"successfully unzipped the file at path {path}")
     
