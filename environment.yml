@@ -3,7 +3,6 @@ channels:
   - defaults
   - pytorch
 dependencies:
-  - python==3.8.10
   - numpy
   - pyyaml=5.4.1
   - scipy
@@ -13,12 +12,12 @@ dependencies:
   - configparser
   - tqdm
   - jupyter
-  - pytorch
+  - libjpeg-turbo  
+  - libpng
+  - pytorch==1.13.1
+  - torchvision==0.14.1
   - future
   - keras
   - scikit-learn
   - black
   - pip
-  - pip:
-      - torch==1.13.1
-      - torchvision
