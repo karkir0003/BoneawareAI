@@ -1,7 +1,9 @@
 name: boneaware-ai
 channels:
   - defaults
+  - pytorch
 dependencies:
+  - python==3.8.10
   - numpy
   - pyyaml=5.4.1
   - scipy

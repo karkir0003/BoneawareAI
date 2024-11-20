@@ -53,44 +53,6 @@ class MURADataset(Dataset):
         self.root_dir = root_dir
         self.augmentation_transforms = augmentation_transforms or []
 
-    @staticmethod
-    def _read_csv(file_path):
-        """
-        Reads a CSV file and returns a list of paths.
-
-        Parameters:
-            file_path (str): Path to the CSV file.
-
-        Returns:
-            list: List of image paths from the CSV file.
-        """
-        data = []
-        with open(file_path, 'r') as f:
-            reader = csv.reader(f)
-            for row in reader:
-                if len(row) > 0:  # Ensure the row is not empty
-                    data.append(row[0].strip())  # Use only the first column
-        return data
-
-    @staticmethod
-    def _read_labels(label_csv):
-        """
-        Reads a csv file and returns a dictionary mapping folder paths to labels
-
-        Parameters:
-            label_csv (str): Path to the csv file
-
-        Returns:
-            dict: A dictionary mapping folder paths to labels
-        """
-        label_map = {}
-        with open(label_csv, 'r') as f:
-            reader = csv.reader(f)
-            for row in reader:
-                if len(row) == 2:
-                    folder_path, label = row
-                    label_map[folder_path] = int(label)  # Ensure label is an integer
-        return label_map
 
     def __len__(self):
         """
