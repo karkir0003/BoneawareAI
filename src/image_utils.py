@@ -218,7 +218,7 @@ def load_data(data_dir, batch_size=32):
     return train_loader, valid_loader
 
 
-def confirm_images_and_labels_vectorized(dataset, dataset_name):
+def confirm_images_and_labels(dataset, dataset_name):
     """
     Confirms that all images and labels in a dataset are properly loaded.
 
