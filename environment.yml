@@ -6,15 +6,16 @@ dependencies:
   - pyyaml=5.4.1
   - scipy
   - matplotlib
+  - pandas
   - boto3
   - configparser
   - tqdm
   - jupyter
   - pytorch
   - future
-  - tensorflow
   - keras
   - scikit-learn
+  - black
   - pip
   - pip:
       - torch==1.13.1
