@@ -18,18 +18,6 @@ def get_aws_credentials():
     aws_secret_access_key = config['default']["aws_secret_access_key"]
     return aws_access_key_id, aws_secret_access_key
 
-"""
-def get_aws_credentials():
-    config = configparser.ConfigParser()
-    config_path = os.path.join(os.path.dirname(__file__), 'config.ini')
-    print(f"Config path: {config_path}")
-    if not os.path.exists(config_path):
-        raise FileNotFoundError(f"Config file not found at {config_path}")
-    config.read(config_path)
-    print(f"Config sections: {config.sections()}")  # Print sections in config
-    aws_access_key_id=config['default']["aws_access_key_id"]
-    aws_secret_access_key=config['default']["aws_secret_access_key"]
-    return aws_access_key_id, aws_secret_access_key"""
 
 def assume_role(role_arn, session_name, duration=3600):
     """
