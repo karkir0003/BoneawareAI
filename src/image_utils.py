@@ -70,7 +70,8 @@ class MURADataset(Dataset):
 
         # Get the image path
         img_path = self.image_df.iloc[original_idx]["image_path"]
-        relative_img_path = os.path.relpath(img_path, start=self.root_dir.split('/')[-1])
+        rel_path_prefix = '/'.join(self.root_dir.split("/")[-2:]) #extract datasets/MURA-v1.1 prefix
+        relative_img_path = os.path.relpath(img_path, start=rel_path_prefix)
         full_img_path = os.path.normpath(os.path.join(self.root_dir, relative_img_path))
 
         # Determine dataset type for label lookup
