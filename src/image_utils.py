@@ -83,15 +83,19 @@ class MURADataset(Dataset):
 
         # Add 'MURA-v1.1/train/' or 'MURA-v1.1/valid/' to match label_map keys
         relative_study_dir = os.path.dirname(relative_img_path).replace("\\", "/")
-        full_study_dir_key = f"MURA-v1.1/{dataset_type}/{relative_study_dir}/".replace("\\", "/")
+        full_study_dir_key = f"/{dataset_type}/{relative_study_dir}/".replace("\\", "/")
+
+        key = relative_study_dir[3:] + "/"
 
         # Fetch the label
-        label = self.label_map.get(full_study_dir_key, -1)
+        label = self.label_map.get(key, -1)
         if label == -1:
-            raise KeyError(f"Label not found for study path: {full_study_dir_key}")
+            raise KeyError(f"Label not found for study path: {key}")
+
+        image_path = '/content/drive/MyDrive/datasets/' + relative_img_path[3:]
 
         # Load the image
-        image = Image.open(full_img_path).convert("RGB")
+        image = Image.open(image_path).convert("RGB")
 
         # Apply the appropriate augmentation transform
         transform = self.augmentation_transforms[transform_idx]
@@ -138,6 +142,7 @@ def get_augmented_transforms():
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
         ]),
     ]
+
 
 
 # Function to load the datasets
