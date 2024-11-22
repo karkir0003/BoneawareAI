@@ -139,23 +139,6 @@ def get_augmented_transforms():
         ]),
     ]
 
-
-def custom_collate_fn(batch):
-    """
-    Custom collate function to skip None values in the batch.
-    """
-    # Remove any (None, None) pairs
-    batch = [item for item in batch if item[0] is not None]
-
-    # If the batch is empty (i.e., all items had missing labels), return empty tensors
-    if not batch:
-        return torch.zeros(0), torch.zeros(0)
-
-    # Unzip the filtered batch into images and labels
-    images, labels = zip(*batch)  # Unzip into two separate lists
-    return torch.stack(images, dim=0), torch.tensor(labels)
-
-
 # Function to load the datasets
 def load_data(data_dir, batch_size=32):
     """
