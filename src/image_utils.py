@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 import sys
 from collections import Counter
+
 sys.path.append('../src')  # Add the 'src' folder to Python's module search path
 sys.path.append('../datasets')  # Add the 'datasets' folder to Python's module search path
 sys.path.append('../notebooks')  # Add the 'notebooks' folder to Python's module search path
@@ -23,10 +24,9 @@ def set_seed(seed):
     np.random.seed(seed)
     torch.manual_seed(seed)
 
+
 # Call set_seed at the beginning of the file
 set_seed(42)
-
-
 
 
 # Define Dataset class for MURA
@@ -44,15 +44,14 @@ class MURADataset(Dataset):
         # Load image paths and labels into pandas DataFrames
         self.image_df = pd.read_csv(image_csv, header=None, names=["image_path"])
         label_df = pd.read_csv(label_csv, header=None, names=["study_path", "label"])
-        
+
         # Normalize paths for consistency
         self.image_df["image_path"] = self.image_df["image_path"].str.replace("\\", "/")
         label_df["study_path"] = label_df["study_path"].str.replace("\\", "/")
-        
+
         self.label_map = pd.Series(label_df["label"].values, index=label_df["study_path"]).to_dict()
         self.root_dir = root_dir
         self.augmentation_transforms = augmentation_transforms or []
-
 
     def __len__(self):
         """
@@ -71,7 +70,6 @@ class MURADataset(Dataset):
         # Get the image path
         img_path = self.image_df.iloc[original_idx]["image_path"]
         relative_img_path = os.path.relpath(img_path, start=self.root_dir.split('/')[-1])
-        full_img_path = os.path.normpath(os.path.join(self.root_dir, relative_img_path))
 
         # Determine dataset type for label lookup
         if "train" in self.root_dir:
@@ -83,15 +81,18 @@ class MURADataset(Dataset):
 
         # Add 'MURA-v1.1/train/' or 'MURA-v1.1/valid/' to match label_map keys
         relative_study_dir = os.path.dirname(relative_img_path).replace("\\", "/")
-        full_study_dir_key = f"MURA-v1.1/{dataset_type}/{relative_study_dir}/".replace("\\", "/")
+
+        key = relative_study_dir[3:] + "/"
 
         # Fetch the label
-        label = self.label_map.get(full_study_dir_key, -1)
+        label = self.label_map.get(key, -1)
         if label == -1:
-            raise KeyError(f"Label not found for study path: {full_study_dir_key}")
+            raise KeyError(f"Label not found for study path: {key}")
+
+        image_path = '/content/drive/MyDrive/datasets/' + relative_img_path[3:]
 
         # Load the image
-        image = Image.open(full_img_path).convert("RGB")
+        image = Image.open(image_path).convert("RGB")
 
         # Apply the appropriate augmentation transform
         transform = self.augmentation_transforms[transform_idx]
@@ -99,7 +100,7 @@ class MURADataset(Dataset):
 
         return image, label
 
-        
+
 def get_augmented_transforms():
     """
     Returns multiple torchvision.transforms.Compose objects for data augmentation.
@@ -156,11 +157,11 @@ def load_data(data_dir, batch_size=32):
     train_image_csv = os.path.join(data_dir, "train_image_paths.csv")
     train_label_csv = os.path.join(data_dir, "train_labeled_studies.csv")
     train_dir = os.path.join(data_dir, "train")
-    
+
     valid_image_csv = os.path.join(data_dir, "valid_image_paths.csv")
     valid_label_csv = os.path.join(data_dir, "valid_labeled_studies.csv")
     valid_dir = os.path.join(data_dir, "valid")
-    
+
     # Define augmentation transforms
     augmentation_transforms = get_augmented_transforms()
 
@@ -169,7 +170,8 @@ def load_data(data_dir, batch_size=32):
         train_image_csv, train_label_csv, train_dir, augmentation_transforms=augmentation_transforms
     )
     valid_dataset = MURADataset(
-        valid_image_csv, valid_label_csv, valid_dir, augmentation_transforms=augmentation_transforms[:1]  # Identity only
+        valid_image_csv, valid_label_csv, valid_dir, augmentation_transforms=augmentation_transforms[:1]
+        # Identity only
     )
 
     # Create DataLoaders
@@ -201,6 +203,7 @@ def confirm_images_and_labels(dataset, dataset_name):
     print(f"Total {dataset_name} images: {total_images}")
     print(f"Unique labels in {dataset_name} dataset: {unique_labels.tolist()}\n")
 
+
 def count_body_parts(dataset, dataset_name):
     """
     Counts occurrences of each body part in the dataset and displays a summary table.
@@ -223,8 +226,7 @@ def count_body_parts(dataset, dataset_name):
     print(f"{dataset_name.capitalize()} dataset body part distribution:")
     display(summary)  # Display the summary
 
-    
-    
+
 def count_body_parts_with_augmentations(dataset, dataset_name, num_augmentations):
     """
     Counts occurrences of each body part in the dataset, including augmented samples,
@@ -258,7 +260,7 @@ def count_body_parts_with_augmentations(dataset, dataset_name, num_augmentations
     print(f"{dataset_name.capitalize()} dataset body part distribution (with augmentations):")
     display(summary)
 
-    
+
 def count_positive_negative(dataset, dataset_name, num_augmentations=0):
     """
     Counts positive and negative cases for each body part in the dataset, including augmented samples,
