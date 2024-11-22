@@ -31,7 +31,7 @@ set_seed(42)
 
 # Define Dataset class for MURA
 class MURADataset(Dataset):
-    def __init__(self, image_csv, label_csv, root_dir, is_local, augmentation_transforms=None):
+    def __init__(self, image_csv, label_csv, root_dir, augmentation_transforms=None):
         """
         Initializes a MURADataset object.
 
@@ -52,7 +52,6 @@ class MURADataset(Dataset):
         self.label_map = pd.Series(label_df["label"].values, index=label_df["study_path"]).to_dict()
         self.root_dir = root_dir
         self.augmentation_transforms = augmentation_transforms or []
-        self.is_local = is_local
 
 
     def __len__(self):
@@ -88,12 +87,6 @@ class MURADataset(Dataset):
 
         # Fetch the label
         label = self.label_map.get(full_study_dir_key, -1)
-
-        if self.is_local == False:
-            key = relative_study_dir[3:] + "/"
-            label = self.label_map.get(key, -1)
-            full_img_path = "/".join(self.root_dir.split("/")[:2]) + "/" + img_path
-
         if label == -1:
             raise KeyError(f"Label not found for study path: {full_study_dir_key}")
 
@@ -148,7 +141,7 @@ def get_augmented_transforms():
 
 
 # Function to load the datasets
-def load_data(data_dir, is_local, batch_size=32):
+def load_data(data_dir, batch_size=32):
     """
     Loads the MURA dataset from a given directory and returns a train data loader and a validation data loader.
 
@@ -173,10 +166,10 @@ def load_data(data_dir, is_local, batch_size=32):
 
     # Create datasets
     train_dataset = MURADataset(
-        train_image_csv, train_label_csv, train_dir, is_local, augmentation_transforms=augmentation_transforms
+        train_image_csv, train_label_csv, train_dir, augmentation_transforms=augmentation_transforms
     )
     valid_dataset = MURADataset(
-        valid_image_csv, valid_label_csv, valid_dir, is_local, augmentation_transforms=augmentation_transforms[:1]  # Identity only
+        valid_image_csv, valid_label_csv, valid_dir, augmentation_transforms=augmentation_transforms[:1]  # Identity only
     )
 
     # Create DataLoaders
