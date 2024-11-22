@@ -84,7 +84,6 @@ class MURADataset(Dataset):
 
         key = relative_study_dir[3:] + "/"
 
-        # Fetch the label
         label = self.label_map.get(key, -1)
         if label == -1:
             raise KeyError(f"Label not found for study path: {key}")
@@ -141,6 +140,22 @@ def get_augmented_transforms():
     ]
 
 
+def custom_collate_fn(batch):
+    """
+    Custom collate function to skip None values in the batch.
+    """
+    # Remove any (None, None) pairs
+    batch = [item for item in batch if item[0] is not None]
+
+    # If the batch is empty (i.e., all items had missing labels), return empty tensors
+    if not batch:
+        return torch.zeros(0), torch.zeros(0)
+
+    # Unzip the filtered batch into images and labels
+    images, labels = zip(*batch)  # Unzip into two separate lists
+    return torch.stack(images, dim=0), torch.tensor(labels)
+
+
 # Function to load the datasets
 def load_data(data_dir, batch_size=32):
     """
@@ -175,8 +190,8 @@ def load_data(data_dir, batch_size=32):
     )
 
     # Create DataLoaders
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-    valid_loader = DataLoader(valid_dataset, batch_size=batch_size, shuffle=False)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=custom_collate_fn)
+    valid_loader = DataLoader(valid_dataset, batch_size=batch_size, shuffle=False, collate_fn=custom_collate_fn)
 
     print(f"Loaded {len(train_dataset)} training samples and {len(valid_dataset)} validation samples.")
     return train_loader, valid_loader
