@@ -7,6 +7,7 @@ from helpers.utils import unzip_file
 
 def download_dataset(file, output_folder):
     download_file_from_s3(BONEAWAREAI_S3_BUCKET, file, output_folder)
+    zip_file_path = os.path.join(output_folder, file)
 
-    if zipfile.is_zipfile(file):
-        unzip_file(os.path.join(output_folder, file))
+    if zipfile.is_zipfile(zip_file_path):
+        unzip_file(zip_file_path)
