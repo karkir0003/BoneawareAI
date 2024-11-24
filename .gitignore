@@ -154,3 +154,7 @@ cython_debug/
 #.idea/
 *.sqlite
 .DS_Store
+
+
+# Trained models
+*.pth
