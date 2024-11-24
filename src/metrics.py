@@ -88,8 +88,8 @@ def compute_class_weights(dataset):
     total_samples = len(labels)
 
     # Compute weights
-    w_normal = total_samples / (2 * label_counts[0])
-    w_abnormal = total_samples / (2 * label_counts[1])
+    w_normal = total_samples / (4 * label_counts[0])
+    w_abnormal = total_samples / (4 * label_counts[1])
 
     print(f"Class weights: w_normal={w_normal}, w_abnormal={w_abnormal}")
     return w_normal, w_abnormal
@@ -256,29 +256,11 @@ def evaluate_model(model, loader, dataset=None, criterion=None):
     all_probs = np.array(all_probs)
     all_losses = np.array(all_losses) if all_losses else None
 
-    # Helper function to calculate confidence intervals for Cohen's Kappa
-    def calculate_kappa_confidence(y_true, y_pred, confidence=0.95):
-        from scipy.stats import norm
-
-        kappa = cohen_kappa_score(y_true, y_pred)
-        po = np.mean(np.array(y_true) == np.array(y_pred))
-        confusion = confusion_matrix(y_true, y_pred)
-        total = np.sum(confusion)
-        pe = sum((confusion.sum(axis=0) / total) * (confusion.sum(axis=1) / total))
-
-        se_kappa = np.sqrt((po * (1 - po)) / len(y_true) + (pe * (1 - pe)) / len(y_true))
-        z = norm.ppf((1 + confidence) / 2)
-        lower_bound = kappa - z * se_kappa
-        upper_bound = kappa + z * se_kappa
-
-        return kappa, lower_bound, upper_bound
-
-
     # Calculate global metrics
     precision, recall, f1, _ = precision_recall_fscore_support(all_labels, all_preds, average='binary')
     specificity = confusion_matrix(all_labels, all_preds)[0, 0] / sum(confusion_matrix(all_labels, all_preds)[0])
     roc_auc = roc_auc_score(all_labels, all_probs)
-    kappa, kappa_lower, kappa_upper = calculate_kappa_confidence(all_labels, all_preds)
+    kappa_metrics = calculate_kappa_confidence_interval(all_labels, all_preds)
 
     # Global loss
     global_loss = all_losses.mean() if all_losses is not None else None
@@ -298,9 +280,9 @@ def evaluate_model(model, loader, dataset=None, criterion=None):
         "F1 Score": f1,
         "Specificity": specificity,
         "ROC-AUC": roc_auc,
-        "Cohen's Kappa": kappa,
-        "Kappa 95% CI Lower": kappa_lower,
-        "Kappa 95% CI Upper": kappa_upper,
+        "Cohen's Kappa": kappa_metrics["Cohen's Kappa"],
+        "Kappa 95% CI Lower": kappa_metrics["95% CI Lower"],
+        "Kappa 95% CI Upper": kappa_metrics["95% CI Upper"],
         "Loss": global_loss
     }
     
@@ -326,7 +308,7 @@ def evaluate_model(model, loader, dataset=None, criterion=None):
             precision, recall, f1, _ = precision_recall_fscore_support(part_labels, part_preds, average='binary')
             specificity = confusion_matrix(part_labels, part_preds)[0, 0] / sum(confusion_matrix(part_labels, part_preds)[0])
             roc_auc = roc_auc_score(part_labels, part_probs)
-            kappa, kappa_lower, kappa_upper = calculate_kappa_confidence(part_labels, part_preds)
+            kappa_metrics = calculate_kappa_confidence_interval(part_labels, part_preds)
             part_loss = part_losses.mean() if part_losses is not None else None
 
             body_part_metrics[body_part] = {
@@ -336,9 +318,9 @@ def evaluate_model(model, loader, dataset=None, criterion=None):
                 "F1 Score": f1,
                 "Specificity": specificity,
                 "ROC-AUC": roc_auc,
-                "Cohen's Kappa": kappa,
-                "Kappa 95% CI Lower": kappa_lower,
-                "Kappa 95% CI Upper": kappa_upper,
+                "Cohen's Kappa": kappa_metrics["Cohen's Kappa"],
+                "Kappa 95% CI Lower": kappa_metrics["95% CI Lower"],
+                "Kappa 95% CI Upper": kappa_metrics["95% CI Upper"],
                 "Loss": part_loss
             }
 
