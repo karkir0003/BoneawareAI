@@ -1,0 +1,290 @@
+
+import os
+import torch
+import random
+import pandas as pd
+import matplotlib.pyplot as plt
+import numpy as np
+from torch import nn, optim
+from tqdm import tqdm
+from sklearn.metrics import (
+    confusion_matrix, roc_auc_score, classification_report,
+    precision_recall_fscore_support, cohen_kappa_score, roc_curve
+)
+
+
+
+
+
+def plot_confusion_matrix(cm, classes, title="Confusion Matrix"):
+    """
+    Plots the confusion matrix using Matplotlib.
+
+    Args:
+        cm (ndarray): Confusion matrix.
+        classes (list): List of class labels.
+        title (str): Title of the plot.
+    """
+    plt.figure(figsize=(8, 6))
+    plt.imshow(cm, interpolation="nearest", cmap="Blues")
+    plt.title(title)
+    plt.colorbar()
+    tick_marks = np.arange(len(classes))
+    plt.xticks(tick_marks, classes, rotation=45)
+    plt.yticks(tick_marks, classes)
+
+    # Add text annotations
+    for i in range(cm.shape[0]):
+        for j in range(cm.shape[1]):
+            plt.text(j, i, format(cm[i, j], "d"), horizontalalignment="center", color="white" if cm[i, j] > cm.max() / 2. else "black")
+
+    plt.ylabel("True Label")
+    plt.xlabel("Predicted Label")
+    plt.tight_layout()
+    plt.show()
+    
+    
+    
+def plot_roc_curve(y_true, y_probs, title="ROC Curve"):
+    """
+    Plots the ROC Curve using Matplotlib.
+
+    Args:
+        y_true (list): True labels.
+        y_probs (list): Predicted probabilities.
+        title (str): Title of the plot.
+    """
+    fpr, tpr, _ = roc_curve(y_true, y_probs)
+    roc_auc = roc_auc_score(y_true, y_probs)
+
+    plt.figure(figsize=(8, 6))
+    plt.plot(fpr, tpr, label=f"ROC-AUC: {roc_auc:.4f}")
+    plt.plot([0, 1], [0, 1], linestyle="--", color="gray")
+    plt.title(title)
+    plt.xlabel("False Positive Rate")
+    plt.ylabel("True Positive Rate")
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+    
+    
+
+
+def compute_class_weights(dataset):
+    """
+    Computes class weights for binary classification based on the dataset.
+
+    Args:
+        dataset (MURADataset): The training dataset.
+
+    Returns:
+        Tuple: (w_normal, w_abnormal)
+    """
+    # Extract labels efficiently using NumPy
+    labels = np.array([dataset[i][1] for i in range(len(dataset))])
+    
+    # Use pandas for counting
+    label_counts = pd.Series(labels).value_counts(normalize=False)
+    total_samples = len(labels)
+
+    # Compute weights
+    w_normal = total_samples / (2 * label_counts[0])
+    w_abnormal = total_samples / (2 * label_counts[1])
+
+    print(f"Class weights: w_normal={w_normal}, w_abnormal={w_abnormal}")
+    return w_normal, w_abnormal
+
+
+
+def calculate_metrics(y_true, y_pred, y_pred_proba):
+    """
+    Calculates performance metrics using NumPy for efficiency.
+
+    Args:
+        y_true (list): Ground truth labels.
+        y_pred (list): Predicted labels.
+        y_pred_proba (list): Predicted probabilities.
+
+    Returns:
+        dict: A dictionary of calculated metrics.
+    """
+    # Convert to NumPy arrays for fast operations
+    y_true = np.array(y_true)
+    y_pred = np.array(y_pred)
+    y_pred_proba = np.array(y_pred_proba)
+
+    # Confusion matrix components
+    tp = np.sum((y_true == 1) & (y_pred == 1))
+    tn = np.sum((y_true == 0) & (y_pred == 0))
+    fp = np.sum((y_true == 0) & (y_pred == 1))
+    fn = np.sum((y_true == 1) & (y_pred == 0))
+
+    # Metrics
+    specificity = tn / (tn + fp) if (tn + fp) > 0 else 0.0
+    accuracy = (tp + tn) / (tp + tn + fp + fn)
+    precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
+    recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+    f1 = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0.0
+    roc_auc = roc_auc_score(y_true, y_pred_proba)
+    kappa = cohen_kappa_score(y_true, y_pred)
+
+    return {
+        "Accuracy": accuracy,
+        "Precision": precision,
+        "Recall": recall,
+        "F1 Score": f1,
+        "Specificity": specificity,
+        "ROC-AUC": roc_auc,
+        "Cohen's Kappa": kappa,
+    }
+
+
+
+def calculate_metrics_per_body_part(dataset, y_true, y_pred, y_pred_proba):
+    """
+    Calculates metrics per body part efficiently using Pandas.
+
+    Args:
+        dataset (MURADataset): The dataset object.
+        y_true (list): Ground truth labels.
+        y_pred (list): Predicted labels.
+        y_pred_proba (list): Predicted probabilities.
+
+    Returns:
+        dict: A dictionary of metrics per body part.
+    """
+    # Extract body parts
+    body_parts = dataset.image_df["image_path"].apply(
+        lambda path: path.split("train/" if "train" in path else "valid/")[1].split("/")[0]
+    )
+
+    # Create a DataFrame for easier processing
+    df = pd.DataFrame({
+        "BodyPart": body_parts,
+        "y_true": y_true,
+        "y_pred": y_pred,
+        "y_pred_proba": y_pred_proba
+    })
+
+    # Group by BodyPart and compute metrics
+    results = {}
+    for body_part, group in df.groupby("BodyPart"):
+        metrics = calculate_metrics(
+            group["y_true"].values,
+            group["y_pred"].values,
+            group["y_pred_proba"].values,
+        )
+        results[body_part] = metrics
+
+    return results
+
+
+
+def evaluate_model(model, loader, dataset=None, criterion=None):
+    """
+    Evaluate the model on a DataLoader and calculate all metrics, including metrics per body part.
+
+    Args:
+        model (nn.Module): The trained model.
+        loader (DataLoader): DataLoader for evaluation.
+        dataset (MURADataset): Optional, the dataset to calculate per-body part metrics.
+
+    Returns:
+        pd.DataFrame: DataFrame summarizing the metrics.
+    """
+    model.eval()
+    all_preds, all_labels, all_probs, all_losses = [], [], [], []
+    device = 'mps' if torch.backends.mps.is_available() else ('cuda' if torch.cuda.is_available() else 'cpu')
+    with torch.no_grad():
+        for inputs, labels in loader:
+            inputs, labels = inputs.to(device), labels.float().to(device)
+            outputs = model(inputs).squeeze()
+            probs = torch.sigmoid(outputs)  # Convert logits to probabilities
+            preds = (probs > 0.5).float()  # Threshold at 0.5
+
+            # Calculate loss if criterion is provided
+            if criterion:
+                loss = criterion(outputs, labels).item()
+                all_losses.extend([loss] * len(labels))
+
+            all_preds.extend(preds.cpu().numpy())
+            all_labels.extend(labels.cpu().numpy())
+            all_probs.extend(probs.cpu().numpy())
+
+    # Convert to NumPy arrays
+    all_preds = np.array(all_preds)
+    all_labels = np.array(all_labels)
+    all_probs = np.array(all_probs)
+    all_losses = np.array(all_losses) if all_losses else None
+
+
+    # Calculate global metrics
+    precision, recall, f1, _ = precision_recall_fscore_support(all_labels, all_preds, average='binary')
+    specificity = confusion_matrix(all_labels, all_preds)[0, 0] / sum(confusion_matrix(all_labels, all_preds)[0])
+    roc_auc = roc_auc_score(all_labels, all_probs)
+    kappa = cohen_kappa_score(all_labels, all_preds)
+
+    # Global loss
+    global_loss = all_losses.mean() if all_losses is not None else None
+
+    # Confusion Matrix
+    cm = confusion_matrix(all_labels, all_preds)
+    plot_confusion_matrix(cm, classes=["Normal", "Abnormal"], title="Confusion Matrix")
+
+    # ROC Curve
+    plot_roc_curve(all_labels, all_probs, title="ROC Curve")
+
+    # Global metrics
+    global_metrics = {
+        "Accuracy": np.mean(all_preds == all_labels),
+        "Precision": precision,
+        "Recall": recall,
+        "F1 Score": f1,
+        "Specificity": specificity,
+        "ROC-AUC": roc_auc,
+        "Cohen's Kappa": kappa,
+        "Loss": global_loss
+    }
+    
+    #Print Metrics and classification report
+    print("Global Metrics:")
+    print (global_metrics)
+    print("Classification Report:")
+    print(classification_report(all_labels, all_preds))
+    
+    # Per-body part metrics
+    if dataset:
+        body_parts = dataset.image_df["image_path"].apply(
+            lambda path: path.split("train/" if "train" in path else "valid/")[1].split("/")[0]
+        )
+        body_part_metrics = {}
+        for body_part in body_parts.unique():
+            indices = body_parts[body_parts == body_part].index
+            part_labels = all_labels[indices]
+            part_preds = all_preds[indices]
+            part_probs = all_probs[indices]
+            part_losses = all_losses[indices] if all_losses is not None else None
+
+            precision, recall, f1, _ = precision_recall_fscore_support(part_labels, part_preds, average='binary')
+            specificity = confusion_matrix(part_labels, part_preds)[0, 0] / sum(confusion_matrix(part_labels, part_preds)[0])
+            roc_auc = roc_auc_score(part_labels, part_probs)
+            kappa = cohen_kappa_score(part_labels, part_preds)
+            part_loss = part_losses.mean() if part_losses is not None else None
+
+            body_part_metrics[body_part] = {
+                "Accuracy": np.mean(part_preds == part_labels),
+                "Precision": precision,
+                "Recall": recall,
+                "F1 Score": f1,
+                "Specificity": specificity,
+                "ROC-AUC": roc_auc,
+                "Cohen's Kappa": kappa,
+                "Loss": part_loss
+            }
+
+        body_part_df = pd.DataFrame(body_part_metrics).T
+        print("Metrics per body part:")
+        print(body_part_df)
+
+    return pd.DataFrame([global_metrics])
+
