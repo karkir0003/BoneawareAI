@@ -157,14 +157,16 @@ def load_data(data_dir, batch_size=32):
     train_image_csv = os.path.join(data_dir, "train_image_paths.csv")
     train_label_csv = os.path.join(data_dir, "train_labeled_studies.csv")
     train_dir = os.path.join(data_dir, "train")
+    train_dir = train_dir.replace("\\", "/")    
     
     valid_image_csv = os.path.join(data_dir, "valid_image_paths.csv")
     valid_label_csv = os.path.join(data_dir, "valid_labeled_studies.csv")
     valid_dir = os.path.join(data_dir, "valid")
+    valid_dir = valid_dir.replace("\\", "/")  
     
     # Define augmentation transforms
     augmentation_transforms = get_augmented_transforms()
-
+    
     # Create datasets
     train_dataset = MURADataset(
         train_image_csv, train_label_csv, train_dir, augmentation_transforms=augmentation_transforms
