@@ -94,7 +94,46 @@ def compute_class_weights(dataset):
     print(f"Class weights: w_normal={w_normal}, w_abnormal={w_abnormal}")
     return w_normal, w_abnormal
 
-
+def calculate_kappa_confidence_interval(y_true, y_pred, confidence=0.95):
+    """
+    Calculate Cohen's Kappa and its confidence interval.
+    
+    Args:
+        y_true (array-like): True labels.
+        y_pred (array-like): Predicted labels.
+        confidence (float): Confidence level (default 0.95).
+    
+    Returns:
+        dict: Cohen's Kappa and its confidence interval.
+    """
+    from scipy.stats import norm
+    
+    # Calculate Cohen's Kappa
+    kappa = cohen_kappa_score(y_true, y_pred)
+    
+    # Observed agreement
+    po = np.mean(np.array(y_true) == np.array(y_pred))
+    
+    # Expected agreement
+    confusion = confusion_matrix(y_true, y_pred)
+    total = np.sum(confusion)
+    pe = sum((confusion.sum(axis=0) / total) * (confusion.sum(axis=1) / total))
+    
+    # Standard error of kappa
+    se_kappa = np.sqrt((po * (1 - po)) / len(y_true) + (pe * (1 - pe)) / len(y_true))
+    
+    # Z-score for desired confidence level
+    z = norm.ppf((1 + confidence) / 2)
+    
+    # Confidence interval
+    lower_bound = kappa - z * se_kappa
+    upper_bound = kappa + z * se_kappa
+    
+    return {
+        "Cohen's Kappa": kappa,
+        "95% CI Lower": lower_bound,
+        "95% CI Upper": upper_bound
+    }
 
 def calculate_metrics(y_true, y_pred, y_pred_proba):
     """
@@ -217,12 +256,29 @@ def evaluate_model(model, loader, dataset=None, criterion=None):
     all_probs = np.array(all_probs)
     all_losses = np.array(all_losses) if all_losses else None
 
+    # Helper function to calculate confidence intervals for Cohen's Kappa
+    def calculate_kappa_confidence(y_true, y_pred, confidence=0.95):
+        from scipy.stats import norm
+
+        kappa = cohen_kappa_score(y_true, y_pred)
+        po = np.mean(np.array(y_true) == np.array(y_pred))
+        confusion = confusion_matrix(y_true, y_pred)
+        total = np.sum(confusion)
+        pe = sum((confusion.sum(axis=0) / total) * (confusion.sum(axis=1) / total))
+
+        se_kappa = np.sqrt((po * (1 - po)) / len(y_true) + (pe * (1 - pe)) / len(y_true))
+        z = norm.ppf((1 + confidence) / 2)
+        lower_bound = kappa - z * se_kappa
+        upper_bound = kappa + z * se_kappa
+
+        return kappa, lower_bound, upper_bound
+
 
     # Calculate global metrics
     precision, recall, f1, _ = precision_recall_fscore_support(all_labels, all_preds, average='binary')
     specificity = confusion_matrix(all_labels, all_preds)[0, 0] / sum(confusion_matrix(all_labels, all_preds)[0])
     roc_auc = roc_auc_score(all_labels, all_probs)
-    kappa = cohen_kappa_score(all_labels, all_preds)
+    kappa, kappa_lower, kappa_upper = calculate_kappa_confidence(all_labels, all_preds)
 
     # Global loss
     global_loss = all_losses.mean() if all_losses is not None else None
@@ -243,12 +299,14 @@ def evaluate_model(model, loader, dataset=None, criterion=None):
         "Specificity": specificity,
         "ROC-AUC": roc_auc,
         "Cohen's Kappa": kappa,
+        "Kappa 95% CI Lower": kappa_lower,
+        "Kappa 95% CI Upper": kappa_upper,
         "Loss": global_loss
     }
     
-    #Print Metrics and classification report
+    # Print Metrics and classification report
     print("Global Metrics:")
-    print (global_metrics)
+    print(global_metrics)
     print("Classification Report:")
     print(classification_report(all_labels, all_preds))
     
@@ -268,7 +326,7 @@ def evaluate_model(model, loader, dataset=None, criterion=None):
             precision, recall, f1, _ = precision_recall_fscore_support(part_labels, part_preds, average='binary')
             specificity = confusion_matrix(part_labels, part_preds)[0, 0] / sum(confusion_matrix(part_labels, part_preds)[0])
             roc_auc = roc_auc_score(part_labels, part_probs)
-            kappa = cohen_kappa_score(part_labels, part_preds)
+            kappa, kappa_lower, kappa_upper = calculate_kappa_confidence(part_labels, part_preds)
             part_loss = part_losses.mean() if part_losses is not None else None
 
             body_part_metrics[body_part] = {
@@ -279,6 +337,8 @@ def evaluate_model(model, loader, dataset=None, criterion=None):
                 "Specificity": specificity,
                 "ROC-AUC": roc_auc,
                 "Cohen's Kappa": kappa,
+                "Kappa 95% CI Lower": kappa_lower,
+                "Kappa 95% CI Upper": kappa_upper,
                 "Loss": part_loss
             }
 
