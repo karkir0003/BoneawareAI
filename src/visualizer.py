@@ -17,15 +17,6 @@ from torch.utils.data import DataLoader
 
 
 
-
-preprocess = transforms.Compose(
-    [
-            transforms.Resize((224, 224)),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-    ]
-)
-
 def find_last_conv_layer(model: nn.Module) -> tuple:
     last_conv_layer_name = None
     last_conv_layer = None
@@ -76,7 +67,6 @@ class GradCAM:
                 class_idx = torch.argmax(probs, dim=1).item()
                 predicted_prob = probs[0, class_idx].item()
 
-        #print(f"[DEBUG] Class Index: {class_idx}, Predicted Probability: {predicted_prob}")
 
         # Compute gradients for the target class
         one_hot_output = torch.zeros_like(logits)
@@ -154,7 +144,7 @@ def denormalize(tensor, mean, std):
     return tensor * std + mean
 
 
-def run_gradcam(model, dataloader, target_layer, class_names, device='cuda'):
+def run_gradcam(model, dataloader, target_layer, class_names, device='cuda', num_images=5):
     """
     Run Grad-CAM for an example batch from the data loader.
 
@@ -173,8 +163,11 @@ def run_gradcam(model, dataloader, target_layer, class_names, device='cuda'):
     
     # Fetch a single batch
     inputs, labels = next(iter(dataloader))
-    #print(f"[DEBUG] Batch Inputs Shape: {inputs.shape}, Labels: {labels}")
-    
+
+    # Dynamically fetch paths from dataset if available
+    dataset = dataloader.dataset
+    paths = dataset.image_df.iloc[:len(inputs)]["image_path"].values  # Fetch paths for the batch
+
     # Clone original images to ensure integrity
     original_images = inputs.detach().cpu().clone()  # Clone the input tensors for original image storage
     inputs, labels = inputs.to(device), labels.to(device)
@@ -184,9 +177,11 @@ def run_gradcam(model, dataloader, target_layer, class_names, device='cuda'):
     std = [0.229, 0.224, 0.225]
 
     # Generate Grad-CAM heatmaps for the batch
-    for i in range(len(inputs)):
+    for i in range(min(len(inputs), num_images)):  # Process up to `n` images
         input_image = inputs[i].unsqueeze(0)  # Add batch dimension
         label = labels[i].item()
+        image_path = paths[i]  # Get the image path
+
 
         # Extract and denormalize the original image
         original_image_tensor = original_images[i]  # Fetch the cloned original tensor
@@ -220,93 +215,198 @@ def run_gradcam(model, dataloader, target_layer, class_names, device='cuda'):
         plt.title("Overlay")
         plt.axis("off")
 
+        # Add image path below the figure
+        plt.gcf().text(0.5, 0.02, f"Image Path: {image_path}", ha='center', fontsize=10)
+
         plt.show()
 
-        # Optional: Save the original image for debugging
-        #original_image.save(f"original_image_{i}.png")
-        break
 
 
-def visualize_gradcam_examples(
-    model, dataset, num_examples=5, dataset_type="valid", 
-    body_part=None, patient_name=None
-):
+def run_gradcam_filtered(model, dataloader, target_layer, class_names, body_part=None, n=5, device='cuda'):
     """
-    Visualize Grad-CAM examples for a model and dataset.
+    Run Grad-CAM for up to `n` images filtered by a specific body part.
 
     Args:
-        model (nn.Module): The trained model.
-        dataset (Dataset): Dataset object (train/validation).
-        gradcam (GradCam): Grad-CAM instance.
-        num_examples (int): Number of examples to display.
-        dataset_type (str): "train" or "validation".
-        body_part (str): Filter by body part type.
-        patient_name (str): Filter by patient name.
+        model (torch.nn.Module): Trained model.
+        dataloader (torch.utils.data.DataLoader): DataLoader for fetching samples.
+        target_layer (torch.nn.Module): Target layer for Grad-CAM.
+        class_names (list): List of class names.
+        body_part (str): Specific body part to filter (e.g., "XR_ELBOW").
+        n (int): Number of images to process (default: 5).
+        device (str): Device to run the model.
+
+    Returns:
+        None
     """
-    # Filter dataset by dataset_type
-    dataset_filtered = [
-        item for item in dataset if dataset_type in item['image_path']
-    ]
-    device = 'mps' if torch.backends.mps.is_available() else ('cuda' if torch.cuda.is_available() else 'cpu')
-    # Further filter by body part
-    if body_part:
-        dataset_filtered = [
-            item for item in dataset_filtered 
-            if body_part in item['image_path']
+    # Filter the dataset by body part if provided
+    if body_part and hasattr(dataloader.dataset, "image_df"):
+        filtered_df = dataloader.dataset.image_df[
+            dataloader.dataset.image_df["image_path"].str.contains(body_part)
         ]
-    
-    # Further filter by patient name
-    if patient_name:
-        dataset_filtered = [
-            item for item in dataset_filtered 
-            if patient_name in item['image_path']
+        filtered_indices = filtered_df.index
+
+        if len(filtered_indices) == 0:
+            print(f"No images found for body part: {body_part}")
+            return
+
+        # Limit the filtered indices to `n` samples
+        filtered_indices = filtered_indices[:n]
+    else:
+        # Default to the first `n` samples if no body part is specified
+        filtered_indices = range(min(len(dataloader.dataset), n))
+
+    # Initialize GradCAM
+    gradcam = GradCAM(model, target_layer)
+
+    # Define the mean and std used in preprocessing
+    mean = [0.485, 0.456, 0.406]
+    std = [0.229, 0.224, 0.225]
+
+    # Process filtered indices
+    for idx in filtered_indices:
+        image, label = dataloader.dataset[idx]
+        input_image = image.unsqueeze(0).to(device)
+        label = int(label)
+
+        # Extract image path
+        image_path = dataloader.dataset.image_df.iloc[idx]["image_path"]
+
+        # Clone the original image and denormalize it
+        denormalized_image_tensor = denormalize(image, mean, std)
+        original_image = to_pil_image(denormalized_image_tensor.clamp(0, 1))
+
+        # Compute heatmap
+        heatmap, class_idx, predicted_prob = gradcam.compute_heatmap(input_image)
+
+        # Overlay heatmap on the original image
+        overlay = overlay_heatmap_on_image(denormalized_image_tensor, heatmap)
+
+        # Plot original image, heatmap, and overlay
+        plt.figure(figsize=(12, 4))
+
+        # Display the original image
+        plt.subplot(1, 3, 1)
+        plt.imshow(original_image)
+        plt.title(f"Original Image\nActual: {class_names[label]}")
+        plt.axis("off")
+
+        # Display the heatmap
+        plt.subplot(1, 3, 2)
+        plt.imshow(heatmap, cmap="jet")
+        plt.title(f"Heatmap\nClass: {class_names[class_idx]}\nProb: {predicted_prob:.4f}")
+        plt.axis("off")
+
+        # Display the overlay
+        plt.subplot(1, 3, 3)
+        plt.imshow(overlay)
+        plt.title("Overlay")
+        plt.axis("off")
+
+        # Add image path below the figure
+        plt.gcf().text(0.5, 0.02, f"Image Path: {image_path}", ha='center', fontsize=10)
+
+        plt.show()
+
+
+def run_gradcam_for_path_person_or_bodypart(
+    model,
+    dataloader,
+    target_layer,
+    class_names,
+    image_path=None,
+    person_id=None,
+    body_part=None,
+    device="cuda",
+):
+    """
+    Run Grad-CAM for a specific image path, all images for a specific person, 
+    or a specific body part for a person.
+
+    Args:
+        model (torch.nn.Module): Trained model.
+        dataloader (torch.utils.data.DataLoader): DataLoader for fetching samples.
+        target_layer (torch.nn.Module): Target layer for Grad-CAM.
+        class_names (list): List of class names.
+        image_path (str): Specific path of the image to analyze.
+        person_id (str): ID of the person (e.g., patient ID).
+        body_part (str): Body part to filter for (e.g., "XR_WRIST").
+        device (str): Device to run the model.
+
+    Returns:
+        None
+    """
+    # Filter dataset based on input criteria
+    if image_path and hasattr(dataloader.dataset, "image_df"):
+        filtered_df = dataloader.dataset.image_df[
+            dataloader.dataset.image_df["image_path"] == image_path
         ]
-
-    # Select up to `num_examples`
-    examples = dataset_filtered[:num_examples]
-
-    # Visualize examples
-    fig, axes = plt.subplots(len(examples), 4, figsize=(15, 5 * len(examples)))
-
-    for i, example in enumerate(examples):
-        image, label = example['image'], example['label']
-        img_tensor = image.unsqueeze(0).to(device)
-
-        # Generate heatmap using Grad-CAM
-        heatmap = GradCAM.compute_heatmap(img_tensor)
-        heatmap_resized = np.uint8(255 * heatmap)
-        
-        # Overlay heatmap on original image
-        overlay = to_pil_image(
-            (image.cpu() * 0.5 + torch.tensor(heatmap_resized).float() / 255).clamp(0, 1)
+    elif person_id and hasattr(dataloader.dataset, "image_df"):
+        filtered_df = dataloader.dataset.image_df[
+            dataloader.dataset.image_df["image_path"].str.contains(person_id)
+        ]
+        if body_part:  # Further filter by body part if specified
+            filtered_df = filtered_df[
+                filtered_df["image_path"].str.contains(body_part)
+            ]
+    else:
+        raise ValueError(
+            "You must provide either `image_path`, `person_id`, or both `person_id` and `body_part`."
         )
-        
-        # Display images
-        axes[i, 0].imshow(to_pil_image(image.cpu()))
-        axes[i, 0].set_title(f"Actual: {label}")
-        axes[i, 1].imshow(heatmap, cmap="jet")
-        axes[i, 1].set_title("Grad-CAM Heatmap")
-        axes[i, 2].imshow(overlay)
-        axes[i, 2].set_title("Heatmap Overlay")
-        axes[i, 3].imshow(to_pil_image(image.cpu()))
-        axes[i, 3].imshow(heatmap, cmap="jet", alpha=0.5)
-        axes[i, 3].set_title("Blended View")
-        
-        for ax in axes[i]:
-            ax.axis("off")
 
-    plt.tight_layout()
-    plt.show()
+    # Check if any matches were found
+    if filtered_df.empty:
+        print("No matching images found for the specified criteria.")
+        return
 
+    # Initialize GradCAM
+    gradcam = GradCAM(model, target_layer)
 
-# Example usage
-# Assume `model`, `train_dataset`, `val_dataset`, and `gradcam` are defined
-# visualize_gradcam_examples(
-#     model=model, 
-#     dataset=val_dataset, 
-#     gradcam=gradcam, 
-#     num_examples=5, 
-#     dataset_type="validation", 
-#     body_part="hand", 
-#     patient_name="patient123"
-# )
+    # Define the mean and std used in preprocessing
+    mean = [0.485, 0.456, 0.406]
+    std = [0.229, 0.224, 0.225]
+
+    # Process each filtered image
+    for idx in filtered_df.index:
+        image, label = dataloader.dataset[idx]
+        input_image = image.unsqueeze(0).to(device)
+        label = int(label)
+
+        # Extract image path
+        image_path = dataloader.dataset.image_df.iloc[idx]["image_path"]
+
+        # Clone the original image and denormalize it
+        denormalized_image_tensor = denormalize(image, mean, std)
+        original_image = to_pil_image(denormalized_image_tensor.clamp(0, 1))
+
+        # Compute heatmap
+        heatmap, class_idx, predicted_prob = gradcam.compute_heatmap(input_image)
+
+        # Overlay heatmap on the original image
+        overlay = overlay_heatmap_on_image(denormalized_image_tensor, heatmap)
+
+        # Plot original image, heatmap, and overlay
+        plt.figure(figsize=(12, 4))
+
+        # Display the original image
+        plt.subplot(1, 3, 1)
+        plt.imshow(original_image)
+        plt.title(f"Original Image\nActual: {class_names[label]}")
+        plt.axis("off")
+
+        # Display the heatmap
+        plt.subplot(1, 3, 2)
+        plt.imshow(heatmap, cmap="jet")
+        plt.title(f"Heatmap\nClass: {class_names[class_idx]}\nProb: {predicted_prob:.4f}")
+        plt.axis("off")
+
+        # Display the overlay
+        plt.subplot(1, 3, 3)
+        plt.imshow(overlay)
+        plt.title("Overlay")
+        plt.axis("off")
+
+        # Add image path below the figure
+        plt.gcf().text(0.5, 0.02, f"Image Path: {image_path}", ha="center", fontsize=10)
+
+        plt.show()
+
