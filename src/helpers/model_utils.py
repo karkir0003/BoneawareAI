@@ -32,7 +32,9 @@ def get_hyperparameters():
     step_size = int(hyperarams['lr_scheduler_step_size'])
     gamma = float(hyperarams['lr_scheduler_gamma'])
     batch_size = int(hyperarams['batch_size'])
-    return lr, weight_decay, num_epochs, step_size, gamma, batch_size
+    factor = float(hyperarams['lr_scheduler_plateau_factor'])
+    patience = int(hyperarams['lr_scheduler_plateau_patience'])
+    return lr, weight_decay, num_epochs, step_size, gamma, batch_size, factor, patience
 
 
 def get_model(model_name, device):
