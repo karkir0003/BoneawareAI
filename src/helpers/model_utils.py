@@ -26,7 +26,8 @@ def get_hyperparameters():
     num_epochs = int(hyperarams['num_epochs'])
     step_size = int(hyperarams['lr_scheduler_step_size'])
     gamma = float(hyperarams['lr_scheduler_gamma'])
-    return lr, weight_decay, num_epochs, step_size, gamma
+    batch_size = int(hyperarams['batch_size'])
+    return lr, weight_decay, num_epochs, step_size, gamma, batch_size
 
 def get_model(model_name, device):
     config, config_path = model_config_parser()
