@@ -29,6 +29,8 @@ class ResNet():
             return resnet18(pretrained=self.pretrained)
         elif (self.variant == ResNetVersion.RESNET_34):
             return resnet34(pretrained=self.pretrained)
+        else:
+            raise ValueError(f"Could not retrieve a resnet model of variant {self.variant}")
         
     def __init__(self, num_labels: int, pretrained: bool=False, variant: ResNetVersion = ResNetVersion.RESNET_18):
         """
@@ -43,7 +45,7 @@ class ResNet():
         self.pretrained = pretrained 
         self.num_labels = num_labels
         self.variant = variant
-        self.model = self.get_pretrained_resnet(self)
+        self.model = self.get_resnet_model(self)
         
         # freeze the parameters for every layer in resnet model
         for param in self.model.parameters():
