@@ -18,6 +18,8 @@ sys.path.append('../datasets')
 sys.path.append('../notebooks')
 
 
+seed_val=42
+
 def set_seed(seed):
     """
     Set the random seed for reproducibility.
@@ -25,6 +27,7 @@ def set_seed(seed):
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
+    seed_val=seed
 
 
 # Call set_seed at the beginning of the file
@@ -35,9 +38,8 @@ mean = [0.485, 0.456, 0.406]
 std = [0.229, 0.224, 0.225]
 
 
-# Define Dataset class for MURA
 class MURADataset(Dataset):
-    def __init__(self, image_csv, label_csv, root_dir, augmentation_transforms=None):
+    def __init__(self, image_csv, label_csv, root_dir, augmentation_transforms=None, undersample_flag=False):
         """
         Initializes a MURADataset object.
 
@@ -45,23 +47,71 @@ class MURADataset(Dataset):
             image_csv (str): Path to the CSV file containing image paths.
             label_csv (str): Path to the CSV file containing labels.
             root_dir (str): Root directory of the dataset.
-            augmentation_transforms (list, optional): List of transforms for training augmentation, including an identity transform for the original image.
+            augmentation_transforms (list, optional): List of transforms for training augmentation.
+            undersample (bool, optional): Whether to perform undersampling on the dataset. Defaults to False.
         """
-        # Load image paths and labels into pandas DataFrames
-        self.image_df = pd.read_csv(
-            image_csv, header=None, names=["image_path"])
-        label_df = pd.read_csv(label_csv, header=None,
-                               names=["study_path", "label"])
+        self.root_dir = root_dir
+        # Load image paths and labels
+        self.image_df = pd.read_csv(image_csv, header=None, names=["image_path"])
+        label_df = pd.read_csv(label_csv, header=None, names=["study_path", "label"])
 
         # Normalize paths for consistency
-        self.image_df["image_path"] = self.image_df["image_path"].str.replace(
-            "\\", "/")
+        self.image_df["image_path"] = self.image_df["image_path"].str.replace("\\", "/")
         label_df["study_path"] = label_df["study_path"].str.replace("\\", "/")
 
-        self.label_map = pd.Series(
-            label_df["label"].values, index=label_df["study_path"]).to_dict()
-        self.root_dir = root_dir
+        self.label_map = pd.Series(label_df["label"].values, index=label_df["study_path"]).to_dict()
+
+        self.image_df["label"] = self.image_df["image_path"].apply(self.get_label_for_path)
+
+        # Filter out rows where labels were not found (label = -1)
+        self.image_df = self.image_df[self.image_df["label"] != -1].reset_index(drop=True)
+
         self.augmentation_transforms = augmentation_transforms or []
+
+        # Apply undersampling based on param
+        if undersample_flag:
+            self.image_df = self.get_undersampled_data()
+
+    def get_label_for_path(self, img_path):
+        """
+        Fetches the label for a given image path by resolving it to the study path.
+        """
+        rel_path_prefix = '/'.join(self.root_dir.split('/')[-2:])
+        relative_img_path = os.path.relpath(img_path, start=rel_path_prefix)
+
+        if "train" in self.root_dir:
+            dataset_type = "train"
+        elif "valid" in self.root_dir:
+            dataset_type = "valid"
+        else:
+            raise ValueError(
+                f"Unrecognized dataset type in root directory: {self.root_dir}")
+        
+        relative_study_dir = os.path.dirname(
+            relative_img_path).replace("\\", "/")
+        full_study_dir_key = f"MURA-v1.1/{dataset_type}/{relative_study_dir}/".replace(
+            "\\", "/")
+        
+        # Fetch the label
+        label = self.label_map.get(full_study_dir_key, -1)
+        if label == -1:
+            raise KeyError(
+                f"Label not found for study path: {full_study_dir_key}")
+
+        return label
+
+    def get_undersampled_data(self):
+        """
+        Performs undersampling to balance class distribution.
+        """
+        labels = self.image_df["label"]
+        min_class_size = labels.value_counts().min()
+
+        undersampled_df = self.image_df.groupby("label").apply(
+            lambda x: x.sample(n=min_class_size, random_state=seed_val)
+        ).reset_index(drop=True)
+
+        return undersampled_df
 
     def __len__(self):
         """
@@ -77,33 +127,15 @@ class MURADataset(Dataset):
         original_idx = idx % len(self.image_df)
         transform_idx = idx // len(self.image_df)
 
-        # Get the image path
-        img_path = self.image_df.iloc[original_idx]["image_path"]
+        # Get the image path and label
+        row = self.image_df.iloc[original_idx]
+        img_path = row["image_path"]
+        label = row["label"]
+
+        # Construct the full image path
         rel_path_prefix = '/'.join(self.root_dir.split('/')[-2:])
         relative_img_path = os.path.relpath(img_path, start=rel_path_prefix)
-        full_img_path = os.path.normpath(
-            os.path.join(self.root_dir, relative_img_path))
-
-        # Determine dataset type for label lookup
-        if "train" in self.root_dir:
-            dataset_type = "train"
-        elif "valid" in self.root_dir:
-            dataset_type = "valid"
-        else:
-            raise ValueError(
-                f"Unrecognized dataset type in root directory: {self.root_dir}")
-
-        # Add 'MURA-v1.1/train/' or 'MURA-v1.1/valid/' to match label_map keys
-        relative_study_dir = os.path.dirname(
-            relative_img_path).replace("\\", "/")
-        full_study_dir_key = f"MURA-v1.1/{dataset_type}/{relative_study_dir}/".replace(
-            "\\", "/")
-
-        # Fetch the label
-        label = self.label_map.get(full_study_dir_key, -1)
-        if label == -1:
-            raise KeyError(
-                f"Label not found for study path: {full_study_dir_key}")
+        full_img_path = os.path.normpath(os.path.join(self.root_dir, relative_img_path))
 
         # Load the image
         image = Image.open(full_img_path).convert("RGB")
@@ -156,7 +188,7 @@ def get_augmented_transforms():
 
 
 # Function to load the datasets
-def load_data(data_dir, batch_size=32):
+def load_data(data_dir, batch_size=32, undersample_flag=False):
     """
     Loads the MURA dataset from a given directory and returns a train data loader and a validation data loader.
 
@@ -167,6 +199,7 @@ def load_data(data_dir, batch_size=32):
         train_loader (DataLoader): A DataLoader for the training data.
         valid_loader (DataLoader): A DataLoader for the validation data.
     """
+    
     # Define file paths
     train_image_csv = os.path.join(data_dir, "train_image_paths.csv")
     train_label_csv = os.path.join(data_dir, "train_labeled_studies.csv")
@@ -183,23 +216,19 @@ def load_data(data_dir, batch_size=32):
 
     # Create datasets
     train_dataset = MURADataset(
-        train_image_csv, train_label_csv, train_dir, augmentation_transforms=augmentation_transforms
+        train_image_csv, train_label_csv, train_dir, augmentation_transforms=augmentation_transforms, undersample_flag=undersample_flag
     )
     valid_dataset = MURADataset(
-        # Identity only
-        valid_image_csv, valid_label_csv, valid_dir, augmentation_transforms=augmentation_transforms[
-            :1]
+        valid_image_csv, valid_label_csv, valid_dir, augmentation_transforms=augmentation_transforms[:1], undersample_flag=False
     )
 
     # Create DataLoaders
-    train_loader = DataLoader(
-        train_dataset, batch_size=batch_size, shuffle=True)
-    valid_loader = DataLoader(
-        valid_dataset, batch_size=batch_size, shuffle=False)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    valid_loader = DataLoader(valid_dataset, batch_size=batch_size, shuffle=False)
 
-    print(
-        f"Loaded {len(train_dataset)} training samples and {len(valid_dataset)} validation samples.")
+    print(f"Loaded {len(train_dataset)} training samples and {len(valid_dataset)} validation samples.")
     return train_loader, valid_loader
+
 
 
 def confirm_images_and_labels(dataset, dataset_name):
