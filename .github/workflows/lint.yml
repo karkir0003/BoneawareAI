@@ -1,3 +1,10 @@
+# @misc{Rickstaa, 
+#title={RICKSTAA/action-black: Runs the PSF/black formatter to check/format your python code.}, 
+#url={https://github.com/rickstaa/action-black}, 
+#journal={GitHub}, 
+#author={Rickstaa}
+#} 
+
 name: Python File Linter
 
 on: [pull_request]
@@ -8,13 +15,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Check files using the black formatter
+      - name: Run Black Formatter
         uses: rickstaa/action-black@v1
         id: action_black
         with:
           black_args: "."
-      - name: Annotate diff changes using reviewdog
+      - uses: stefanzweifel/git-auto-commit-action@v4
+        name: "Attempt to Auto fix black formatter issues"
         if: steps.action_black.outputs.is_formatted == 'true'
-        uses: reviewdog/action-suggester@v1
         with:
-          tool_name: blackfmt
+          commit_message: ":art: Format Python code with psf/black"
+          commit_options: "--no-verify"
+          commit_user_name: github-actions
+          commit_user_email: ghaction@github.com
