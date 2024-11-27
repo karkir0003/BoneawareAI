@@ -23,15 +23,7 @@ class ResNetVersion(Enum):
     RESNET_18 = 'resnet18'
     RESNET_34 = 'resnet34'
 
-class ResNet():
-    def get_resnet_model(self):
-        if (self.variant == ResNetVersion.RESNET_18):
-            return resnet18(pretrained=self.pretrained)
-        elif (self.variant == ResNetVersion.RESNET_34):
-            return resnet34(pretrained=self.pretrained)
-        else:
-            raise ValueError(f"Could not retrieve a resnet model of variant {self.variant}")
-        
+class ResNet(nn.Module):
     def __init__(self, num_labels: int, pretrained: bool=False, variant: ResNetVersion = ResNetVersion.RESNET_18):
         """
         Generate fine tuned resnet model
@@ -41,11 +33,14 @@ class ResNet():
             pretrained (bool): Should pretrained weights be used. Default to False
             variant (ResNetVersion): Which variant of Resnet. Default to Resnet 18
         """
-        self.model = None 
-        self.pretrained = pretrained 
-        self.num_labels = num_labels
-        self.variant = variant
-        self.model = self.get_resnet_model(self)
+        super(ResNet, self).__init__() 
+        # Initialize the model based on the variant
+        if variant == ResNetVersion.RESNET_18:
+            self.model = resnet18(pretrained=pretrained)
+        elif variant == ResNetVersion.RESNET_34:
+            self.model = resnet34(pretrained=pretrained)
+        else:
+            raise ValueError(f"Invalid variant: {variant}. Choose from {list(ResNetVersion)}")
         
         # freeze the parameters for every layer in resnet model
         for param in self.model.parameters():
@@ -54,7 +49,7 @@ class ResNet():
         # replace final FC layer
         final_fc_in_features = self.model.fc.in_features
         self.model.fc = nn.Linear(final_fc_in_features, num_labels)
-    
+
     def forward(self, x):
         preds = self.model(x)
         return preds.squeeze(-1)  # Squeeze to get shape [batch_size] (logits)

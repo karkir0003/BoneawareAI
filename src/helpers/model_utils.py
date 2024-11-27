@@ -4,7 +4,7 @@ import configparser
 # IMPORT MODELS HERE
 from models.densenet import DenseNet
 from models.custom_cnn import CustomCNN1
-# from models.resnet import ResNet
+from models.resnet import ResNet, ResNetVersion
 # from models.vgg import VGG
 
 
@@ -49,7 +49,7 @@ def get_model(model_name, device):
         if 'resnet' not in config:
             raise KeyError(
                 f"'resnet' section not found in config file at {config_path}.")
-        # model = return_resnet(config['resnet'], device)
+        model = return_resnet(config['resnet'], device)
     elif model_name == 'vgg':
         if 'vgg' not in config:
             raise KeyError(
@@ -73,7 +73,16 @@ def return_densenet(config, device):
 
 def return_resnet(config, device):
     # TODO: Implement this when the ResNet model is added
-    pass
+    num_labels = int(config['num_labels'])
+    pretrained = bool(config['pretrained'])
+    variant = str(config['variant'])
+    try:
+      resnet_version = ResNetVersion(variant)
+      return ResNet(num_labels, pretrained=pretrained, variant=resnet_version).to(device)
+    except ValueError:
+      print(f"Invalid variant: {variant}. Add to ResNet Version enum")
+    
+    return None
 
 
 def return_vgg(config, device):
