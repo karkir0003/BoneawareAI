@@ -10,15 +10,17 @@ import numpy as np
 import pandas as pd
 import sys
 from collections import Counter
+
 # Add the 'src' folder to Python's module search path
-sys.path.append('../src')
+sys.path.append("../src")
 # Add the 'datasets' folder to Python's module search path
-sys.path.append('../datasets')
+sys.path.append("../datasets")
 # Add the 'notebooks' folder to Python's module search path
-sys.path.append('../notebooks')
+sys.path.append("../notebooks")
 
 
-seed_val=42
+seed_val = 42
+
 
 def set_seed(seed):
     """
@@ -27,7 +29,7 @@ def set_seed(seed):
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
-    seed_val=seed
+    seed_val = seed
 
 
 # Call set_seed at the beginning of the file
@@ -39,7 +41,14 @@ std = [0.229, 0.224, 0.225]
 
 
 class MURADataset(Dataset):
-    def __init__(self, image_csv, label_csv, root_dir, augmentation_transforms=None, undersample_flag=False):
+    def __init__(
+        self,
+        image_csv,
+        label_csv,
+        root_dir,
+        augmentation_transforms=None,
+        undersample_flag=False,
+    ):
         """
         Initializes a MURADataset object.
 
@@ -59,12 +68,18 @@ class MURADataset(Dataset):
         self.image_df["image_path"] = self.image_df["image_path"].str.replace("\\", "/")
         label_df["study_path"] = label_df["study_path"].str.replace("\\", "/")
 
-        self.label_map = pd.Series(label_df["label"].values, index=label_df["study_path"]).to_dict()
+        self.label_map = pd.Series(
+            label_df["label"].values, index=label_df["study_path"]
+        ).to_dict()
 
-        self.image_df["label"] = self.image_df["image_path"].apply(self.get_label_for_path)
+        self.image_df["label"] = self.image_df["image_path"].apply(
+            self.get_label_for_path
+        )
 
         # Filter out rows where labels were not found (label = -1)
-        self.image_df = self.image_df[self.image_df["label"] != -1].reset_index(drop=True)
+        self.image_df = self.image_df[self.image_df["label"] != -1].reset_index(
+            drop=True
+        )
 
         self.augmentation_transforms = augmentation_transforms or []
 
@@ -76,7 +91,7 @@ class MURADataset(Dataset):
         """
         Fetches the label for a given image path by resolving it to the study path.
         """
-        rel_path_prefix = '/'.join(self.root_dir.split('/')[-2:])
+        rel_path_prefix = "/".join(self.root_dir.split("/")[-2:])
         relative_img_path = os.path.relpath(img_path, start=rel_path_prefix)
 
         if "train" in self.root_dir:
@@ -85,18 +100,18 @@ class MURADataset(Dataset):
             dataset_type = "valid"
         else:
             raise ValueError(
-                f"Unrecognized dataset type in root directory: {self.root_dir}")
-        
-        relative_study_dir = os.path.dirname(
-            relative_img_path).replace("\\", "/")
+                f"Unrecognized dataset type in root directory: {self.root_dir}"
+            )
+
+        relative_study_dir = os.path.dirname(relative_img_path).replace("\\", "/")
         full_study_dir_key = f"MURA-v1.1/{dataset_type}/{relative_study_dir}/".replace(
-            "\\", "/")
-        
+            "\\", "/"
+        )
+
         # Fetch the label
         label = self.label_map.get(full_study_dir_key, -1)
         if label == -1:
-            raise KeyError(
-                f"Label not found for study path: {full_study_dir_key}")
+            raise KeyError(f"Label not found for study path: {full_study_dir_key}")
 
         return label
 
@@ -107,9 +122,11 @@ class MURADataset(Dataset):
         labels = self.image_df["label"]
         min_class_size = labels.value_counts().min()
 
-        undersampled_df = self.image_df.groupby("label").apply(
-            lambda x: x.sample(n=min_class_size, random_state=seed_val)
-        ).reset_index(drop=True)
+        undersampled_df = (
+            self.image_df.groupby("label")
+            .apply(lambda x: x.sample(n=min_class_size, random_state=seed_val))
+            .reset_index(drop=True)
+        )
 
         return undersampled_df
 
@@ -133,7 +150,7 @@ class MURADataset(Dataset):
         label = row["label"]
 
         # Construct the full image path
-        rel_path_prefix = '/'.join(self.root_dir.split('/')[-2:])
+        rel_path_prefix = "/".join(self.root_dir.split("/")[-2:])
         relative_img_path = os.path.relpath(img_path, start=rel_path_prefix)
         full_img_path = os.path.normpath(os.path.join(self.root_dir, relative_img_path))
 
@@ -155,35 +172,43 @@ def get_augmented_transforms():
         list: A list of torchvision.transforms.Compose objects for augmentation.
     """
     return [
-        transforms.Compose([  # Identity transform for the original image
-            transforms.Resize((224, 224)),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=mean, std=std),
-        ]),
-        transforms.Compose([
-            transforms.Resize((224, 224)),
-            transforms.RandomHorizontalFlip(),
-            transforms.RandomRotation(15),
-            transforms.ColorJitter(brightness=0.2, contrast=0.2),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=mean, std=std),
-        ]),
-        transforms.Compose([
-            transforms.Resize((224, 224)),
-            transforms.RandomVerticalFlip(),
-            transforms.RandomRotation(30),
-            transforms.RandomAffine(degrees=20, scale=(0.8, 1.2)),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=mean, std=std),
-        ]),
-        transforms.Compose([
-            transforms.Resize((224, 224)),
-            transforms.RandomHorizontalFlip(),
-            transforms.RandomPerspective(distortion_scale=0.5, p=0.5),
-            transforms.ColorJitter(hue=0.2),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=mean, std=std),
-        ]),
+        transforms.Compose(
+            [  # Identity transform for the original image
+                transforms.Resize((224, 224)),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=mean, std=std),
+            ]
+        ),
+        transforms.Compose(
+            [
+                transforms.Resize((224, 224)),
+                transforms.RandomHorizontalFlip(),
+                transforms.RandomRotation(15),
+                transforms.ColorJitter(brightness=0.2, contrast=0.2),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=mean, std=std),
+            ]
+        ),
+        transforms.Compose(
+            [
+                transforms.Resize((224, 224)),
+                transforms.RandomVerticalFlip(),
+                transforms.RandomRotation(30),
+                transforms.RandomAffine(degrees=20, scale=(0.8, 1.2)),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=mean, std=std),
+            ]
+        ),
+        transforms.Compose(
+            [
+                transforms.Resize((224, 224)),
+                transforms.RandomHorizontalFlip(),
+                transforms.RandomPerspective(distortion_scale=0.5, p=0.5),
+                transforms.ColorJitter(hue=0.2),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=mean, std=std),
+            ]
+        ),
     ]
 
 
@@ -199,7 +224,7 @@ def load_data(data_dir, batch_size=32, undersample_flag=False):
         train_loader (DataLoader): A DataLoader for the training data.
         valid_loader (DataLoader): A DataLoader for the validation data.
     """
-    
+
     # Define file paths
     train_image_csv = os.path.join(data_dir, "train_image_paths.csv")
     train_label_csv = os.path.join(data_dir, "train_labeled_studies.csv")
@@ -216,19 +241,28 @@ def load_data(data_dir, batch_size=32, undersample_flag=False):
 
     # Create datasets
     train_dataset = MURADataset(
-        train_image_csv, train_label_csv, train_dir, augmentation_transforms=augmentation_transforms, undersample_flag=undersample_flag
+        train_image_csv,
+        train_label_csv,
+        train_dir,
+        augmentation_transforms=augmentation_transforms,
+        undersample_flag=undersample_flag,
     )
     valid_dataset = MURADataset(
-        valid_image_csv, valid_label_csv, valid_dir, augmentation_transforms=augmentation_transforms[:1], undersample_flag=False
+        valid_image_csv,
+        valid_label_csv,
+        valid_dir,
+        augmentation_transforms=augmentation_transforms[:1],
+        undersample_flag=False,
     )
 
     # Create DataLoaders
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     valid_loader = DataLoader(valid_dataset, batch_size=batch_size, shuffle=False)
 
-    print(f"Loaded {len(train_dataset)} training samples and {len(valid_dataset)} validation samples.")
+    print(
+        f"Loaded {len(train_dataset)} training samples and {len(valid_dataset)} validation samples."
+    )
     return train_loader, valid_loader
-
 
 
 def confirm_images_and_labels(dataset, dataset_name):
@@ -250,8 +284,7 @@ def confirm_images_and_labels(dataset, dataset_name):
     unique_labels = np.unique(labels)
 
     print(f"Total {dataset_name} images: {total_images}")
-    print(
-        f"Unique labels in {dataset_name} dataset: {unique_labels.tolist()}\n")
+    print(f"Unique labels in {dataset_name} dataset: {unique_labels.tolist()}\n")
 
 
 def count_body_parts(dataset, dataset_name):
@@ -264,9 +297,11 @@ def count_body_parts(dataset, dataset_name):
     """
     # Extract body parts from image paths in `dataset.image_df`
     body_parts = dataset.image_df["image_path"].apply(
-        lambda path: path.split(
-            "train/" if "train" in path else "valid/")[1].split("/")[0]
-        if "train" in path or "valid" in path else "Unknown"
+        lambda path: (
+            path.split("train/" if "train" in path else "valid/")[1].split("/")[0]
+            if "train" in path or "valid" in path
+            else "Unknown"
+        )
     )
 
     # Create a DataFrame for analysis
@@ -290,9 +325,11 @@ def count_body_parts_with_augmentations(dataset, dataset_name, num_augmentations
     """
     # Extract body parts
     body_parts = dataset.image_df["image_path"].apply(
-        lambda path: path.split(
-            "train/" if "train" in path else "valid/")[1].split("/")[0]
-        if "train" in path or "valid" in path else "Unknown"
+        lambda path: (
+            path.split("train/" if "train" in path else "valid/")[1].split("/")[0]
+            if "train" in path or "valid" in path
+            else "Unknown"
+        )
     )
 
     # Create a DataFrame for analysis
@@ -303,13 +340,17 @@ def count_body_parts_with_augmentations(dataset, dataset_name, num_augmentations
     augmented_counts = body_part_counts * (1 + num_augmentations)
 
     # Create a summary DataFrame
-    summary = pd.DataFrame({
-        "BodyPart": body_part_counts.index,
-        "OriginalCount": body_part_counts.values,
-        "AugmentedCount": augmented_counts.values,
-    })
+    summary = pd.DataFrame(
+        {
+            "BodyPart": body_part_counts.index,
+            "OriginalCount": body_part_counts.values,
+            "AugmentedCount": augmented_counts.values,
+        }
+    )
 
-    print(f"{dataset_name.capitalize()} dataset body part distribution (with augmentations):")
+    print(
+        f"{dataset_name.capitalize()} dataset body part distribution (with augmentations):"
+    )
     display(summary)
 
 
@@ -325,28 +366,32 @@ def count_positive_negative(dataset, dataset_name, num_augmentations=0):
     """
     # Extract body parts and corresponding labels
     body_parts = dataset.image_df["image_path"].apply(
-        lambda path: path.split(
-            "train/" if "train" in path else "valid/")[1].split("/")[0]
-        if "train" in path or "valid" in path else "Unknown"
+        lambda path: (
+            path.split("train/" if "train" in path else "valid/")[1].split("/")[0]
+            if "train" in path or "valid" in path
+            else "Unknown"
+        )
     )
     labels = dataset.image_df["image_path"].apply(
         lambda path: dataset.label_map.get(
-            os.path.dirname(path).replace("\\", "/") + "/", -1)
+            os.path.dirname(path).replace("\\", "/") + "/", -1
+        )
     )
 
     # Create a DataFrame for analysis
     df = pd.DataFrame({"BodyPart": body_parts, "Label": labels})
 
     # Group by BodyPart and Label, and calculate counts
-    summary = df.groupby(["BodyPart", "Label"]).size().unstack(
-        fill_value=0).reset_index()
+    summary = (
+        df.groupby(["BodyPart", "Label"]).size().unstack(fill_value=0).reset_index()
+    )
     summary.columns = ["BodyPart", "Negative", "Positive"]
 
     # Add augmented counts
-    summary["AugmentedNegative"] = summary["Negative"] * \
-        (1 + num_augmentations)
-    summary["AugmentedPositive"] = summary["Positive"] * \
-        (1 + num_augmentations)
+    summary["AugmentedNegative"] = summary["Negative"] * (1 + num_augmentations)
+    summary["AugmentedPositive"] = summary["Positive"] * (1 + num_augmentations)
 
-    print(f"{dataset_name.capitalize()} dataset positive/negative distribution (with augmentations):")
+    print(
+        f"{dataset_name.capitalize()} dataset positive/negative distribution (with augmentations):"
+    )
     display(summary)

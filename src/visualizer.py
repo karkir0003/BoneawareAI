@@ -48,8 +48,11 @@ class GradCAM:
             logits = logits.unsqueeze(1)  # Make it [batch_size, 1]
 
         # Compute probabilities
-        probs = torch.sigmoid(logits) if logits.size(
-            1) == 1 else torch.softmax(logits, dim=1)
+        probs = (
+            torch.sigmoid(logits)
+            if logits.size(1) == 1
+            else torch.softmax(logits, dim=1)
+        )
 
         # Determine the predicted class if class_idx is not specified
         if class_idx is None:
@@ -78,7 +81,10 @@ class GradCAM:
 
         # Upsample the heatmap to match the input image size
         heatmap = torch.nn.functional.interpolate(
-            heatmap, size=(input_batch.shape[2], input_batch.shape[3]), mode='bilinear', align_corners=False
+            heatmap,
+            size=(input_batch.shape[2], input_batch.shape[3]),
+            mode="bilinear",
+            align_corners=False,
         )
         heatmap = heatmap.squeeze().cpu().numpy()
 
@@ -137,7 +143,9 @@ def denormalize(tensor, mean, std):
     return tensor * std + mean
 
 
-def run_gradcam(model, dataloader, target_layer, class_names, device='cuda', num_images=5):
+def run_gradcam(
+    model, dataloader, target_layer, class_names, device="cuda", num_images=5
+):
     """
     Run Grad-CAM for an example batch from the data loader.
 
@@ -160,7 +168,7 @@ def run_gradcam(model, dataloader, target_layer, class_names, device='cuda', num
     # Dynamically fetch paths from dataset if available
     dataset = dataloader.dataset
     # Fetch paths for the batch
-    paths = dataset.image_df.iloc[:len(inputs)]["image_path"].values
+    paths = dataset.image_df.iloc[: len(inputs)]["image_path"].values
 
     # Clone original images to ensure integrity
     # Clone the input tensors for original image storage
@@ -177,13 +185,14 @@ def run_gradcam(model, dataloader, target_layer, class_names, device='cuda', num
         # Fetch the cloned original tensor
         original_image_tensor = original_images[i]
         denormalized_image_tensor = denormalize(
-            original_image_tensor, base_mean, base_std)  # Denormalize the image
+            original_image_tensor, base_mean, base_std
+        )  # Denormalize the image
         original_image = to_pil_image(
-            denormalized_image_tensor.clamp(0, 1))  # Convert to PIL format
+            denormalized_image_tensor.clamp(0, 1)
+        )  # Convert to PIL format
 
         # Compute heatmap
-        heatmap, class_idx, predicted_prob = gradcam.compute_heatmap(
-            input_image)
+        heatmap, class_idx, predicted_prob = gradcam.compute_heatmap(input_image)
 
         # Overlay heatmap on the original image
         overlay = overlay_heatmap_on_image(denormalized_image_tensor, heatmap)
@@ -201,7 +210,8 @@ def run_gradcam(model, dataloader, target_layer, class_names, device='cuda', num
         plt.subplot(1, 3, 2)
         plt.imshow(heatmap, cmap="jet")
         plt.title(
-            f"Heatmap\nClass: {class_names[class_idx]}\nProb: {predicted_prob:.4f}")
+            f"Heatmap\nClass: {class_names[class_idx]}\nProb: {predicted_prob:.4f}"
+        )
         plt.axis("off")
 
         # Display the overlay
@@ -211,13 +221,14 @@ def run_gradcam(model, dataloader, target_layer, class_names, device='cuda', num
         plt.axis("off")
 
         # Add image path below the figure
-        plt.gcf().text(
-            0.5, 0.02, f"Image Path: {image_path}", ha='center', fontsize=10)
+        plt.gcf().text(0.5, 0.02, f"Image Path: {image_path}", ha="center", fontsize=10)
 
         plt.show()
 
 
-def run_gradcam_filtered(model, dataloader, target_layer, class_names, body_part=None, n=5, device='cuda'):
+def run_gradcam_filtered(
+    model, dataloader, target_layer, class_names, body_part=None, n=5, device="cuda"
+):
     """
     Run Grad-CAM for up to `n` images filtered by a specific body part.
 
@@ -267,8 +278,7 @@ def run_gradcam_filtered(model, dataloader, target_layer, class_names, body_part
         original_image = to_pil_image(denormalized_image_tensor.clamp(0, 1))
 
         # Compute heatmap
-        heatmap, class_idx, predicted_prob = gradcam.compute_heatmap(
-            input_image)
+        heatmap, class_idx, predicted_prob = gradcam.compute_heatmap(input_image)
 
         # Overlay heatmap on the original image
         overlay = overlay_heatmap_on_image(denormalized_image_tensor, heatmap)
@@ -286,7 +296,8 @@ def run_gradcam_filtered(model, dataloader, target_layer, class_names, body_part
         plt.subplot(1, 3, 2)
         plt.imshow(heatmap, cmap="jet")
         plt.title(
-            f"Heatmap\nClass: {class_names[class_idx]}\nProb: {predicted_prob:.4f}")
+            f"Heatmap\nClass: {class_names[class_idx]}\nProb: {predicted_prob:.4f}"
+        )
         plt.axis("off")
 
         # Display the overlay
@@ -296,8 +307,7 @@ def run_gradcam_filtered(model, dataloader, target_layer, class_names, body_part
         plt.axis("off")
 
         # Add image path below the figure
-        plt.gcf().text(
-            0.5, 0.02, f"Image Path: {image_path}", ha='center', fontsize=10)
+        plt.gcf().text(0.5, 0.02, f"Image Path: {image_path}", ha="center", fontsize=10)
 
         plt.show()
 
@@ -313,7 +323,7 @@ def run_gradcam_for_path_person_or_bodypart(
     device="cuda",
 ):
     """
-    Run Grad-CAM for a specific image path, all images for a specific person, 
+    Run Grad-CAM for a specific image path, all images for a specific person,
     or a specific body part for a person.
 
     Args:
@@ -339,9 +349,7 @@ def run_gradcam_for_path_person_or_bodypart(
             dataloader.dataset.image_df["image_path"].str.contains(person_id)
         ]
         if body_part:  # Further filter by body part if specified
-            filtered_df = filtered_df[
-                filtered_df["image_path"].str.contains(body_part)
-            ]
+            filtered_df = filtered_df[filtered_df["image_path"].str.contains(body_part)]
     else:
         raise ValueError(
             "You must provide either `image_path`, `person_id`, or both `person_id` and `body_part`."
@@ -369,8 +377,7 @@ def run_gradcam_for_path_person_or_bodypart(
         original_image = to_pil_image(denormalized_image_tensor.clamp(0, 1))
 
         # Compute heatmap
-        heatmap, class_idx, predicted_prob = gradcam.compute_heatmap(
-            input_image)
+        heatmap, class_idx, predicted_prob = gradcam.compute_heatmap(input_image)
 
         # Overlay heatmap on the original image
         overlay = overlay_heatmap_on_image(denormalized_image_tensor, heatmap)
@@ -388,7 +395,8 @@ def run_gradcam_for_path_person_or_bodypart(
         plt.subplot(1, 3, 2)
         plt.imshow(heatmap, cmap="jet")
         plt.title(
-            f"Heatmap\nClass: {class_names[class_idx]}\nProb: {predicted_prob:.4f}")
+            f"Heatmap\nClass: {class_names[class_idx]}\nProb: {predicted_prob:.4f}"
+        )
         plt.axis("off")
 
         # Display the overlay
@@ -398,7 +406,6 @@ def run_gradcam_for_path_person_or_bodypart(
         plt.axis("off")
 
         # Add image path below the figure
-        plt.gcf().text(
-            0.5, 0.02, f"Image Path: {image_path}", ha="center", fontsize=10)
+        plt.gcf().text(0.5, 0.02, f"Image Path: {image_path}", ha="center", fontsize=10)
 
         plt.show()
