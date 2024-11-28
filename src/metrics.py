@@ -1,4 +1,3 @@
-
 import os
 import torch
 import random
@@ -8,12 +7,13 @@ import numpy as np
 from torch import nn, optim
 from tqdm import tqdm
 from sklearn.metrics import (
-    confusion_matrix, roc_auc_score, classification_report,
-    precision_recall_fscore_support, cohen_kappa_score, roc_curve
+    confusion_matrix,
+    roc_auc_score,
+    classification_report,
+    precision_recall_fscore_support,
+    cohen_kappa_score,
+    roc_curve,
 )
-
-
-
 
 
 def plot_confusion_matrix(cm, classes, title="Confusion Matrix"):
@@ -36,15 +36,20 @@ def plot_confusion_matrix(cm, classes, title="Confusion Matrix"):
     # Add text annotations
     for i in range(cm.shape[0]):
         for j in range(cm.shape[1]):
-            plt.text(j, i, format(cm[i, j], "d"), horizontalalignment="center", color="white" if cm[i, j] > cm.max() / 2. else "black")
+            plt.text(
+                j,
+                i,
+                format(cm[i, j], "d"),
+                horizontalalignment="center",
+                color="white" if cm[i, j] > cm.max() / 2.0 else "black",
+            )
 
     plt.ylabel("True Label")
     plt.xlabel("Predicted Label")
     plt.tight_layout()
     plt.show()
-    
-    
-    
+
+
 def plot_roc_curve(y_true, y_probs, title="ROC Curve"):
     """
     Plots the ROC Curve using Matplotlib.
@@ -66,8 +71,6 @@ def plot_roc_curve(y_true, y_probs, title="ROC Curve"):
     plt.legend()
     plt.tight_layout()
     plt.show()
-    
-    
 
 
 def compute_class_weights(dataset):
@@ -82,7 +85,7 @@ def compute_class_weights(dataset):
     """
     # Extract labels efficiently using NumPy
     labels = np.array([dataset[i][1] for i in range(len(dataset))])
-    
+
     # Use pandas for counting
     label_counts = pd.Series(labels).value_counts(normalize=False)
     total_samples = len(labels)
@@ -94,46 +97,48 @@ def compute_class_weights(dataset):
     print(f"Class weights: w_normal={w_normal}, w_abnormal={w_abnormal}")
     return w_normal, w_abnormal
 
+
 def calculate_kappa_confidence_interval(y_true, y_pred, confidence=0.95):
     """
     Calculate Cohen's Kappa and its confidence interval.
-    
+
     Args:
         y_true (array-like): True labels.
         y_pred (array-like): Predicted labels.
         confidence (float): Confidence level (default 0.95).
-    
+
     Returns:
         dict: Cohen's Kappa and its confidence interval.
     """
     from scipy.stats import norm
-    
+
     # Calculate Cohen's Kappa
     kappa = cohen_kappa_score(y_true, y_pred)
-    
+
     # Observed agreement
     po = np.mean(np.array(y_true) == np.array(y_pred))
-    
+
     # Expected agreement
     confusion = confusion_matrix(y_true, y_pred)
     total = np.sum(confusion)
     pe = sum((confusion.sum(axis=0) / total) * (confusion.sum(axis=1) / total))
-    
+
     # Standard error of kappa
     se_kappa = np.sqrt((po * (1 - po)) / len(y_true) + (pe * (1 - pe)) / len(y_true))
-    
+
     # Z-score for desired confidence level
     z = norm.ppf((1 + confidence) / 2)
-    
+
     # Confidence interval
     lower_bound = kappa - z * se_kappa
     upper_bound = kappa + z * se_kappa
-    
+
     return {
         "Cohen's Kappa": kappa,
         "95% CI Lower": lower_bound,
-        "95% CI Upper": upper_bound
+        "95% CI Upper": upper_bound,
     }
+
 
 def calculate_metrics(y_true, y_pred, y_pred_proba):
     """
@@ -163,7 +168,11 @@ def calculate_metrics(y_true, y_pred, y_pred_proba):
     accuracy = (tp + tn) / (tp + tn + fp + fn)
     precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
     recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
-    f1 = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0.0
+    f1 = (
+        2 * (precision * recall) / (precision + recall)
+        if (precision + recall) > 0
+        else 0.0
+    )
     roc_auc = roc_auc_score(y_true, y_pred_proba)
     kappa = cohen_kappa_score(y_true, y_pred)
 
@@ -176,7 +185,6 @@ def calculate_metrics(y_true, y_pred, y_pred_proba):
         "ROC-AUC": roc_auc,
         "Cohen's Kappa": kappa,
     }
-
 
 
 def calculate_metrics_per_body_part(dataset, y_true, y_pred, y_pred_proba):
@@ -194,16 +202,20 @@ def calculate_metrics_per_body_part(dataset, y_true, y_pred, y_pred_proba):
     """
     # Extract body parts
     body_parts = dataset.image_df["image_path"].apply(
-        lambda path: path.split("train/" if "train" in path else "valid/")[1].split("/")[0]
+        lambda path: path.split("train/" if "train" in path else "valid/")[1].split(
+            "/"
+        )[0]
     )
 
     # Create a DataFrame for easier processing
-    df = pd.DataFrame({
-        "BodyPart": body_parts,
-        "y_true": y_true,
-        "y_pred": y_pred,
-        "y_pred_proba": y_pred_proba
-    })
+    df = pd.DataFrame(
+        {
+            "BodyPart": body_parts,
+            "y_true": y_true,
+            "y_pred": y_pred,
+            "y_pred_proba": y_pred_proba,
+        }
+    )
 
     # Group by BodyPart and compute metrics
     results = {}
@@ -216,7 +228,6 @@ def calculate_metrics_per_body_part(dataset, y_true, y_pred, y_pred_proba):
         results[body_part] = metrics
 
     return results
-
 
 
 def evaluate_model(model, loader, dataset=None, criterion=None):
@@ -233,7 +244,11 @@ def evaluate_model(model, loader, dataset=None, criterion=None):
     """
     model.eval()
     all_preds, all_labels, all_probs, all_losses = [], [], [], []
-    device = 'mps' if torch.backends.mps.is_available() else ('cuda' if torch.cuda.is_available() else 'cpu')
+    device = (
+        "mps"
+        if torch.backends.mps.is_available()
+        else ("cuda" if torch.cuda.is_available() else "cpu")
+    )
     with torch.no_grad():
         for inputs, labels in loader:
             inputs, labels = inputs.to(device), labels.float().to(device)
@@ -257,8 +272,12 @@ def evaluate_model(model, loader, dataset=None, criterion=None):
     all_losses = np.array(all_losses) if all_losses else None
 
     # Calculate global metrics
-    precision, recall, f1, _ = precision_recall_fscore_support(all_labels, all_preds, average='binary')
-    specificity = confusion_matrix(all_labels, all_preds)[0, 0] / sum(confusion_matrix(all_labels, all_preds)[0])
+    precision, recall, f1, _ = precision_recall_fscore_support(
+        all_labels, all_preds, average="binary"
+    )
+    specificity = confusion_matrix(all_labels, all_preds)[0, 0] / sum(
+        confusion_matrix(all_labels, all_preds)[0]
+    )
     roc_auc = roc_auc_score(all_labels, all_probs)
     kappa_metrics = calculate_kappa_confidence_interval(all_labels, all_preds)
 
@@ -283,19 +302,21 @@ def evaluate_model(model, loader, dataset=None, criterion=None):
         "Cohen's Kappa": kappa_metrics["Cohen's Kappa"],
         "Kappa 95% CI Lower": kappa_metrics["95% CI Lower"],
         "Kappa 95% CI Upper": kappa_metrics["95% CI Upper"],
-        "Loss": global_loss
+        "Loss": global_loss,
     }
-    
+
     # Print Metrics and classification report
     print("Global Metrics:")
     print(global_metrics)
     print("Classification Report:")
     print(classification_report(all_labels, all_preds))
-    
+
     # Per-body part metrics
     if dataset:
         body_parts = dataset.image_df["image_path"].apply(
-            lambda path: path.split("train/" if "train" in path else "valid/")[1].split("/")[0]
+            lambda path: path.split("train/" if "train" in path else "valid/")[1].split(
+                "/"
+            )[0]
         )
         body_part_metrics = {}
         for body_part in body_parts.unique():
@@ -305,8 +326,12 @@ def evaluate_model(model, loader, dataset=None, criterion=None):
             part_probs = all_probs[indices]
             part_losses = all_losses[indices] if all_losses is not None else None
 
-            precision, recall, f1, _ = precision_recall_fscore_support(part_labels, part_preds, average='binary')
-            specificity = confusion_matrix(part_labels, part_preds)[0, 0] / sum(confusion_matrix(part_labels, part_preds)[0])
+            precision, recall, f1, _ = precision_recall_fscore_support(
+                part_labels, part_preds, average="binary"
+            )
+            specificity = confusion_matrix(part_labels, part_preds)[0, 0] / sum(
+                confusion_matrix(part_labels, part_preds)[0]
+            )
             roc_auc = roc_auc_score(part_labels, part_probs)
             kappa_metrics = calculate_kappa_confidence_interval(part_labels, part_preds)
             part_loss = part_losses.mean() if part_losses is not None else None
@@ -321,7 +346,7 @@ def evaluate_model(model, loader, dataset=None, criterion=None):
                 "Cohen's Kappa": kappa_metrics["Cohen's Kappa"],
                 "Kappa 95% CI Lower": kappa_metrics["95% CI Lower"],
                 "Kappa 95% CI Upper": kappa_metrics["95% CI Upper"],
-                "Loss": part_loss
+                "Loss": part_loss,
             }
 
         body_part_df = pd.DataFrame(body_part_metrics).T
@@ -329,4 +354,3 @@ def evaluate_model(model, loader, dataset=None, criterion=None):
         print(body_part_df)
 
     return pd.DataFrame([global_metrics])
-
