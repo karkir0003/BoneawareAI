@@ -16,53 +16,44 @@ class CustomCNN1(nn.Module):
 
         # Initial convolution layers (stem)
         self.stem = nn.Sequential(
-            nn.Conv2d(3, 32, kernel_size=3, stride=1,
-                      padding='valid', bias=False),
+            nn.Conv2d(3, 32, kernel_size=3, stride=1, padding="valid", bias=False),
             nn.BatchNorm2d(32),
             nn.ReLU(inplace=True),
-            nn.Conv2d(32, 64, kernel_size=3, stride=1,
-                      padding='valid', bias=False),
+            nn.Conv2d(32, 64, kernel_size=3, stride=1, padding="valid", bias=False),
             nn.BatchNorm2d(64),
             nn.ReLU(inplace=True),
-            nn.Conv2d(64, 64, kernel_size=3, stride=1,
-                      padding='valid', bias=False),
+            nn.Conv2d(64, 64, kernel_size=3, stride=1, padding="valid", bias=False),
             nn.BatchNorm2d(64),
             nn.ReLU(inplace=True),
-            nn.MaxPool2d(kernel_size=3, stride=2)
+            nn.MaxPool2d(kernel_size=3, stride=2),
         )
 
         # Mid convolution layers
         self.middle = nn.Sequential(
-            nn.Conv2d(64, 64, kernel_size=3, stride=1,
-                      padding='valid', bias=False),
+            nn.Conv2d(64, 64, kernel_size=3, stride=1, padding="valid", bias=False),
             nn.BatchNorm2d(64),
             nn.ReLU(inplace=True),
-            nn.Conv2d(64, 128, kernel_size=3, stride=1,
-                      padding='valid', bias=False),
+            nn.Conv2d(64, 128, kernel_size=3, stride=1, padding="valid", bias=False),
             nn.BatchNorm2d(128),
             nn.ReLU(inplace=True),
-            nn.Conv2d(128, 128, kernel_size=3, stride=1,
-                      padding='valid', bias=False),
+            nn.Conv2d(128, 128, kernel_size=3, stride=1, padding="valid", bias=False),
             nn.BatchNorm2d(128),
             nn.ReLU(inplace=True),
-            nn.MaxPool2d(kernel_size=3, stride=2)
+            nn.MaxPool2d(kernel_size=3, stride=2),
         )
 
         # Final convolution layers
         self.final_conv = nn.Sequential(
-            nn.Conv2d(128, 128, kernel_size=3, stride=1,
-                      padding='valid', bias=False),
+            nn.Conv2d(128, 128, kernel_size=3, stride=1, padding="valid", bias=False),
             nn.BatchNorm2d(128),
             nn.ReLU(inplace=True),
-            nn.Conv2d(128, 256, kernel_size=3, stride=1,
-                      padding='valid', bias=False),
+            nn.Conv2d(128, 256, kernel_size=3, stride=1, padding="valid", bias=False),
             nn.BatchNorm2d(256),
             nn.ReLU(inplace=True),
-            nn.Conv2d(256, 256, kernel_size=3, stride=1,
-                      padding='valid', bias=False),
+            nn.Conv2d(256, 256, kernel_size=3, stride=1, padding="valid", bias=False),
             nn.BatchNorm2d(256),
             nn.ReLU(inplace=True),
-            nn.MaxPool2d(kernel_size=3, stride=2)
+            nn.MaxPool2d(kernel_size=3, stride=2),
         )
 
         # Classification layers
