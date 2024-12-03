@@ -4,6 +4,7 @@ import configparser
 # IMPORT MODELS HERE
 from models.densenet import DenseNet
 from models.custom_cnn import CustomCNN1, BodyPartCNN, CustomCNNWithAttention
+
 # from models.resnet import ResNet
 # from models.vgg import VGG
 
@@ -11,8 +12,7 @@ from models.custom_cnn import CustomCNN1, BodyPartCNN, CustomCNNWithAttention
 def model_config_parser():
     config = configparser.ConfigParser()
     # Point to the main directory
-    main_dir = os.path.abspath(os.path.join(
-        os.path.dirname(__file__), "../.."))
+    main_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
     config_path = os.path.join(main_dir, "models.ini")
     if not os.path.exists(config_path):
         raise FileNotFoundError(f"Config file not found at {config_path}")
@@ -55,25 +55,26 @@ def get_model(model_name, device):
         # model = return_resnet(config['resnet'], device)
     elif model_name == "vgg":
         if "vgg" not in config:
-            raise KeyError(
-                f"'vgg' section not found in config file at {config_path}.")
+            raise KeyError(f"'vgg' section not found in config file at {config_path}.")
         # model = return_vgg(config['vgg'], device)
     elif model_name == "custom_cnn1":
         if "custom_cnn1" not in config:
             raise KeyError(
-                f"'custom_cnn1' section not found in config file at {config_path}.")
-        model = return_custom_cnn1(config['custom_cnn1'], device)
-    elif model_name == 'body_part_cnn':
-        if 'body_part_cnn' not in config:
+                f"'custom_cnn1' section not found in config file at {config_path}."
+            )
+        model = return_custom_cnn1(config["custom_cnn1"], device)
+    elif model_name == "body_part_cnn":
+        if "body_part_cnn" not in config:
             raise KeyError(
-                f"'body_part_cnn' section not found in config file at {config_path}.")
-        model = return_body_part_cnn(config['body_part_cnn'], device)
-    elif model_name == 'custom_cnn_attention':
-        if 'custom_cnn_attention' not in config:
+                f"'body_part_cnn' section not found in config file at {config_path}."
+            )
+        model = return_body_part_cnn(config["body_part_cnn"], device)
+    elif model_name == "custom_cnn_attention":
+        if "custom_cnn_attention" not in config:
             raise KeyError(
-                f"'custom_cnn_attention' section not found in config file at {config_path}.")
-        model = return_custom_cnn_attention(
-            config['custom_cnn_attention'], device)
+                f"'custom_cnn_attention' section not found in config file at {config_path}."
+            )
+        model = return_custom_cnn_attention(config["custom_cnn_attention"], device)
     return model
 
 
@@ -106,6 +107,8 @@ def return_body_part_cnn(config, device):
 
 
 def return_custom_cnn_attention(config, device):
-    dropout_rate = float(config['dropout_rate'])
-    num_classes = int(config['num_classes'])
-    return CustomCNNWithAttention(dropout_rate=dropout_rate, num_classes=num_classes).to(device)
+    dropout_rate = float(config["dropout_rate"])
+    num_classes = int(config["num_classes"])
+    return CustomCNNWithAttention(
+        dropout_rate=dropout_rate, num_classes=num_classes
+    ).to(device)

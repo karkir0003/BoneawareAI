@@ -16,16 +16,13 @@ class CustomCNN1(nn.Module):
 
         # Initial convolution layers (stem)
         self.stem = nn.Sequential(
-            nn.Conv2d(3, 32, kernel_size=3, stride=1,
-                      padding="valid", bias=False),
+            nn.Conv2d(3, 32, kernel_size=3, stride=1, padding="valid", bias=False),
             nn.BatchNorm2d(32),
             nn.ReLU(inplace=True),
-            nn.Conv2d(32, 64, kernel_size=3, stride=1,
-                      padding="valid", bias=False),
+            nn.Conv2d(32, 64, kernel_size=3, stride=1, padding="valid", bias=False),
             nn.BatchNorm2d(64),
             nn.ReLU(inplace=True),
-            nn.Conv2d(64, 64, kernel_size=3, stride=1,
-                      padding="valid", bias=False),
+            nn.Conv2d(64, 64, kernel_size=3, stride=1, padding="valid", bias=False),
             nn.BatchNorm2d(64),
             nn.ReLU(inplace=True),
             nn.MaxPool2d(kernel_size=3, stride=2),
@@ -33,16 +30,13 @@ class CustomCNN1(nn.Module):
 
         # Mid convolution layers
         self.middle = nn.Sequential(
-            nn.Conv2d(64, 64, kernel_size=3, stride=1,
-                      padding="valid", bias=False),
+            nn.Conv2d(64, 64, kernel_size=3, stride=1, padding="valid", bias=False),
             nn.BatchNorm2d(64),
             nn.ReLU(inplace=True),
-            nn.Conv2d(64, 128, kernel_size=3, stride=1,
-                      padding="valid", bias=False),
+            nn.Conv2d(64, 128, kernel_size=3, stride=1, padding="valid", bias=False),
             nn.BatchNorm2d(128),
             nn.ReLU(inplace=True),
-            nn.Conv2d(128, 128, kernel_size=3, stride=1,
-                      padding="valid", bias=False),
+            nn.Conv2d(128, 128, kernel_size=3, stride=1, padding="valid", bias=False),
             nn.BatchNorm2d(128),
             nn.ReLU(inplace=True),
             nn.MaxPool2d(kernel_size=3, stride=2),
@@ -50,16 +44,13 @@ class CustomCNN1(nn.Module):
 
         # Final convolution layers
         self.final_conv = nn.Sequential(
-            nn.Conv2d(128, 128, kernel_size=3, stride=1,
-                      padding="valid", bias=False),
+            nn.Conv2d(128, 128, kernel_size=3, stride=1, padding="valid", bias=False),
             nn.BatchNorm2d(128),
             nn.ReLU(inplace=True),
-            nn.Conv2d(128, 256, kernel_size=3, stride=1,
-                      padding="valid", bias=False),
+            nn.Conv2d(128, 256, kernel_size=3, stride=1, padding="valid", bias=False),
             nn.BatchNorm2d(256),
             nn.ReLU(inplace=True),
-            nn.Conv2d(256, 256, kernel_size=3, stride=1,
-                      padding="valid", bias=False),
+            nn.Conv2d(256, 256, kernel_size=3, stride=1, padding="valid", bias=False),
             nn.BatchNorm2d(256),
             nn.ReLU(inplace=True),
             nn.MaxPool2d(kernel_size=3, stride=2),
@@ -96,16 +87,14 @@ class BodyPartCNN(nn.Module):
             nn.BatchNorm2d(16),
             nn.ReLU(inplace=True),
             nn.MaxPool2d(2, 2),  # Downscale by 2
-
             nn.Conv2d(16, 32, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(32),
             nn.ReLU(inplace=True),
             nn.MaxPool2d(2, 2),  # Downscale by 2
-
             nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(64),
             nn.ReLU(inplace=True),
-            nn.AdaptiveAvgPool2d((1, 1))  # Global Average Pooling
+            nn.AdaptiveAvgPool2d((1, 1)),  # Global Average Pooling
         )
         self.fc = nn.Linear(64, num_classes)
 
@@ -120,7 +109,8 @@ class DepthwiseSeparableConv(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, padding=1):
         super().__init__()
         self.depthwise = nn.Conv2d(
-            in_channels, in_channels, kernel_size, stride, padding, groups=in_channels)
+            in_channels, in_channels, kernel_size, stride, padding, groups=in_channels
+        )
         self.pointwise = nn.Conv2d(in_channels, out_channels, kernel_size=1)
 
     def forward(self, x):
@@ -155,26 +145,23 @@ class CustomCNNWithAttention(nn.Module):
             DepthwiseSeparableConv(32, 64),
             nn.BatchNorm2d(64),
             nn.ReLU(),
-            nn.MaxPool2d(2, 2)
+            nn.MaxPool2d(2, 2),
         )
         self.middle = nn.Sequential(
             DepthwiseSeparableConv(64, 128),
             nn.BatchNorm2d(128),
             nn.ReLU(),
             SqueezeExcitation(128),
-            nn.MaxPool2d(2, 2)
+            nn.MaxPool2d(2, 2),
         )
         self.final = nn.Sequential(
             DepthwiseSeparableConv(128, 256),
             nn.BatchNorm2d(256),
             nn.ReLU(),
             SqueezeExcitation(256),
-            nn.AdaptiveAvgPool2d((1, 1))
+            nn.AdaptiveAvgPool2d((1, 1)),
         )
-        self.fc = nn.Sequential(
-            nn.Dropout(dropout_rate),
-            nn.Linear(256, num_classes)
-        )
+        self.fc = nn.Sequential(nn.Dropout(dropout_rate), nn.Linear(256, num_classes))
 
     def forward(self, x):
         x = self.stem(x)

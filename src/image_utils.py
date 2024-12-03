@@ -288,7 +288,7 @@ def filter_loader(loader, body_part):
     return DataLoader(filtered_dataset, batch_size=loader.batch_size, shuffle=True)
 
 
-def ensemble_predictions(models, loader, device='cuda'):
+def ensemble_predictions(models, loader, device="cuda"):
     all_preds = []
     all_labels = []
 

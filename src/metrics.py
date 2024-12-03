@@ -124,8 +124,7 @@ def calculate_kappa_confidence_interval(y_true, y_pred, confidence=0.95):
     pe = sum((confusion.sum(axis=0) / total) * (confusion.sum(axis=1) / total))
 
     # Standard error of kappa
-    se_kappa = np.sqrt((po * (1 - po)) / len(y_true) +
-                       (pe * (1 - pe)) / len(y_true))
+    se_kappa = np.sqrt((po * (1 - po)) / len(y_true) + (pe * (1 - pe)) / len(y_true))
 
     # Z-score for desired confidence level
     z = norm.ppf((1 + confidence) / 2)
@@ -287,8 +286,7 @@ def evaluate_model(model, loader, dataset=None, criterion=None):
 
     # Confusion Matrix
     cm = confusion_matrix(all_labels, all_preds)
-    plot_confusion_matrix(
-        cm, classes=["Normal", "Abnormal"], title="Confusion Matrix")
+    plot_confusion_matrix(cm, classes=["Normal", "Abnormal"], title="Confusion Matrix")
 
     # ROC Curve
     plot_roc_curve(all_labels, all_probs, title="ROC Curve")
@@ -335,8 +333,7 @@ def evaluate_model(model, loader, dataset=None, criterion=None):
                 confusion_matrix(part_labels, part_preds)[0]
             )
             roc_auc = roc_auc_score(part_labels, part_probs)
-            kappa_metrics = calculate_kappa_confidence_interval(
-                part_labels, part_preds)
+            kappa_metrics = calculate_kappa_confidence_interval(part_labels, part_preds)
             part_loss = part_losses.mean() if part_losses is not None else None
 
             body_part_metrics[body_part] = {
@@ -360,7 +357,14 @@ def evaluate_model(model, loader, dataset=None, criterion=None):
 
 
 # Combine Main and Body Part Model Ensembles for Metrics
-def evaluate_ensemble(main_model, body_part_models, loader, dataset, device, class_names=["Normal", "Abnormal"]):
+def evaluate_ensemble(
+    main_model,
+    body_part_models,
+    loader,
+    dataset,
+    device,
+    class_names=["Normal", "Abnormal"],
+):
     """
     Evaluate the ensemble of main model and body part models and calculate metrics.
 
@@ -391,17 +395,14 @@ def evaluate_ensemble(main_model, body_part_models, loader, dataset, device, cla
                 part_preds.append(torch.sigmoid(model(inputs)))
 
             # Combine main and body part predictions (average ensemble)
-            final_preds = (
-                main_preds + torch.mean(torch.stack(part_preds), dim=0)) / 2
+            final_preds = (main_preds + torch.mean(torch.stack(part_preds), dim=0)) / 2
             ensemble_preds.extend((final_preds > 0.5).cpu().numpy())
             ensemble_probs.extend(final_preds.cpu().numpy())
             ensemble_labels.extend(labels.cpu().numpy())
 
     # Step 2: Compute Overall Metrics
     ensemble_metrics = calculate_metrics(
-        ensemble_labels,
-        ensemble_preds,
-        ensemble_probs
+        ensemble_labels, ensemble_preds, ensemble_probs
     )
 
     print("\nGlobal Ensemble Metrics:")
@@ -416,15 +417,13 @@ def evaluate_ensemble(main_model, body_part_models, loader, dataset, device, cla
         print(f"{part}: {metrics}")
 
     # Step 4: Calculate Cohen's Kappa and CI
-    kappa_ci = calculate_kappa_confidence_interval(
-        ensemble_labels, ensemble_preds)
+    kappa_ci = calculate_kappa_confidence_interval(ensemble_labels, ensemble_preds)
     print("\nCohen's Kappa and Confidence Interval:")
     print(kappa_ci)
 
     # Step 5: Plot Confusion Matrix
     cm = confusion_matrix(ensemble_labels, ensemble_preds)
-    plot_confusion_matrix(cm, classes=class_names,
-                          title="Ensemble Confusion Matrix")
+    plot_confusion_matrix(cm, classes=class_names, title="Ensemble Confusion Matrix")
 
     # Step 6: Plot ROC Curve
     plot_roc_curve(ensemble_labels, ensemble_probs, title="Ensemble ROC Curve")
