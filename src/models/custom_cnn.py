@@ -183,5 +183,3 @@ class CustomCNNWithAttention(nn.Module):
         x = torch.flatten(x, 1)
         x = self.fc(x)
         return x.squeeze(-1)
-
-
