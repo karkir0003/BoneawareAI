@@ -354,3 +354,78 @@ def evaluate_model(model, loader, dataset=None, criterion=None):
         print(body_part_df)
 
     return pd.DataFrame([global_metrics])
+
+
+# Combine Main and Body Part Model Ensembles for Metrics
+def evaluate_ensemble(
+    main_model,
+    body_part_models,
+    loader,
+    dataset,
+    device,
+    class_names=["Normal", "Abnormal"],
+):
+    """
+    Evaluate the ensemble of main model and body part models and calculate metrics.
+
+    Args:
+        main_model (nn.Module): Main trained model.
+        body_part_models (dict): Dictionary of body part-specific models.
+        loader (DataLoader): DataLoader for evaluation.
+        dataset (MURADataset): Dataset object for metrics.
+        device (torch.device): Device for computation.
+        class_names (list): List of class names.
+
+    Returns:
+        dict: Metrics for the ensemble and per body part.
+    """
+    # Step 1: Get Predictions
+    main_model.eval()
+    ensemble_preds, ensemble_labels, ensemble_probs = [], [], []
+
+    for inputs, labels in loader:
+        inputs, labels = inputs.to(device), labels.to(device)
+        with torch.no_grad():
+            # Main model predictions
+            main_preds = torch.sigmoid(main_model(inputs))
+
+            # Body part model predictions
+            part_preds = []
+            for model in body_part_models.values():
+                part_preds.append(torch.sigmoid(model(inputs)))
+
+            # Combine main and body part predictions (average ensemble)
+            final_preds = (main_preds + torch.mean(torch.stack(part_preds), dim=0)) / 2
+            ensemble_preds.extend((final_preds > 0.5).cpu().numpy())
+            ensemble_probs.extend(final_preds.cpu().numpy())
+            ensemble_labels.extend(labels.cpu().numpy())
+
+    # Step 2: Compute Overall Metrics
+    ensemble_metrics = calculate_metrics(
+        ensemble_labels, ensemble_preds, ensemble_probs
+    )
+
+    print("\nGlobal Ensemble Metrics:")
+    print(ensemble_metrics)
+
+    # Step 3: Compute Metrics Per Body Part
+    body_part_metrics = calculate_metrics_per_body_part(
+        dataset, ensemble_labels, ensemble_preds, ensemble_probs
+    )
+    print("\nBody Part Metrics:")
+    for part, metrics in body_part_metrics.items():
+        print(f"{part}: {metrics}")
+
+    # Step 4: Calculate Cohen's Kappa and CI
+    kappa_ci = calculate_kappa_confidence_interval(ensemble_labels, ensemble_preds)
+    print("\nCohen's Kappa and Confidence Interval:")
+    print(kappa_ci)
+
+    # Step 5: Plot Confusion Matrix
+    cm = confusion_matrix(ensemble_labels, ensemble_preds)
+    plot_confusion_matrix(cm, classes=class_names, title="Ensemble Confusion Matrix")
+
+    # Step 6: Plot ROC Curve
+    plot_roc_curve(ensemble_labels, ensemble_probs, title="Ensemble ROC Curve")
+
+    return ensemble_metrics, body_part_metrics, kappa_ci
