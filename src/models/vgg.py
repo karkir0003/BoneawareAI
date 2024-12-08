@@ -1,4 +1,3 @@
-# Use Pretrained VGG16 model for bone fracture detection
 from enum import Enum
 import torch
 import torch.nn as nn
