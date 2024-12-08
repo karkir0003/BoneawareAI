@@ -4,6 +4,7 @@ import configparser
 # IMPORT MODELS HERE
 from models.densenet import DenseNet
 from models.custom_cnn import CustomCNN1, BodyPartCNN, CustomCNNWithAttention
+from models.vgg_pretrained import get_vgg_pretrained, VGGPretrainedVersion
 
 # from models.resnet import ResNet
 # from models.vgg import VGG
@@ -57,6 +58,12 @@ def get_model(model_name, device):
         if "vgg" not in config:
             raise KeyError(f"'vgg' section not found in config file at {config_path}.")
         # model = return_vgg(config['vgg'], device)
+    elif model_name == "vgg_pretrained":
+        if "vgg_pretrained" not in config:
+            raise KeyError(
+                f"'vgg_pretrained' section not found in config file at {config_path}."
+            )
+        model = return_vgg_pretrained(config["vgg_pretrained"], device)
     elif model_name == "custom_cnn1":
         if "custom_cnn1" not in config:
             raise KeyError(
@@ -94,6 +101,21 @@ def return_resnet(config, device):
 def return_vgg(config, device):
     # TODO: Implement this when the VGG model is added
     pass
+
+def return_vgg_pretrained(config, device):
+    num_classes = int(config["num_classes"])
+    pretrained = config["pretrained"]
+    model = config["model"]
+    try:
+        vgg_version = VGGPretrainedVersion(model)
+        model = get_vgg_pretrained(num_classes, vgg_version, pretrained)
+        if model:
+            return model.to(device)
+    except ValueError:
+        print(f"Invalid variant: {model}. Add to VGG Version enum")
+
+    return None
+
 
 
 def return_custom_cnn1(config, device):
