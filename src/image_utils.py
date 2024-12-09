@@ -446,17 +446,17 @@ def analyze_models(models):
     """
     Get number of parameters and sizes of multiple PyTorch models
     """
-    
+
     results = {}
 
     for model_path in models:
         state_dict = torch.load(model_path)
         num_params = sum(p.numel() for p in state_dict.values())
-        model_size = os.path.getsize(model_path) / (1024 ** 2)
+        model_size = os.path.getsize(model_path) / (1024**2)
 
         results[model_path] = {
             "num_parameters": num_params,
-            "model_size_mb": model_size
+            "model_size_mb": model_size,
         }
 
     return results
