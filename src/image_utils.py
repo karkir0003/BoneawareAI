@@ -265,6 +265,51 @@ def load_data(data_dir, batch_size=32, undersample_flag=False):
     return train_loader, valid_loader
 
 
+def filter_loader(loader, body_part):
+    """
+    Filters the dataset for a specific body part and creates a new DataLoader.
+
+    Args:
+        loader (DataLoader): The original DataLoader.
+        body_part (str): The specific body part to filter.
+
+    Returns:
+        DataLoader: A new DataLoader for the filtered dataset.
+    """
+    dataset = loader.dataset
+    filtered_indices = dataset.image_df.index[
+        dataset.image_df["image_path"].str.contains(body_part)
+    ].tolist()
+
+    # Create a subset of the dataset using the filtered indices
+    filtered_dataset = torch.utils.data.Subset(dataset, filtered_indices)
+
+    # Create and return a new DataLoader
+    return DataLoader(filtered_dataset, batch_size=loader.batch_size, shuffle=True)
+
+
+def ensemble_predictions(models, loader, device="cuda"):
+    all_preds = []
+    all_labels = []
+
+    for inputs, labels in loader:
+        inputs = inputs.to(device)
+        preds = []
+
+        for part, model in models.items():
+            model.eval()
+            with torch.no_grad():
+                part_preds = torch.sigmoid(model(inputs))
+                preds.append(part_preds)
+
+        # Average predictions
+        ensemble_preds = torch.mean(torch.stack(preds), dim=0)
+        all_preds.extend((ensemble_preds > 0.5).cpu().numpy())
+        all_labels.extend(labels.numpy())
+
+    return all_preds, all_labels
+
+
 def confirm_images_and_labels(dataset, dataset_name):
     """
     Confirms that all images and labels in a dataset are properly loaded.
@@ -395,3 +440,23 @@ def count_positive_negative(dataset, dataset_name, num_augmentations=0):
         f"{dataset_name.capitalize()} dataset positive/negative distribution (with augmentations):"
     )
     display(summary)
+
+
+def analyze_models(models):
+    """
+    Get number of parameters and sizes of multiple PyTorch models
+    """
+
+    results = {}
+
+    for model_path in models:
+        state_dict = torch.load(model_path)
+        num_params = sum(p.numel() for p in state_dict.values())
+        model_size = os.path.getsize(model_path) / (1024**2)
+
+        results[model_path] = {
+            "num_parameters": num_params,
+            "model_size_mb": model_size,
+        }
+
+    return results

@@ -5,6 +5,7 @@ import configparser
 from models.densenet import DenseNet
 from models.custom_cnn import CustomCNN1
 from models.densenet169 import DenseNet169
+from models.custom_cnn import CustomCNN1, BodyPartCNN, CustomCNNWithAttention
 
 # from models.resnet import ResNet
 # from models.vgg import VGG
@@ -70,6 +71,18 @@ def get_model(model_name, device):
                 f"'custom_cnn1' section not found in config file at {config_path}."
             )
         model = return_custom_cnn1(config["custom_cnn1"], device)
+    elif model_name == "body_part_cnn":
+        if "body_part_cnn" not in config:
+            raise KeyError(
+                f"'body_part_cnn' section not found in config file at {config_path}."
+            )
+        model = return_body_part_cnn(config["body_part_cnn"], device)
+    elif model_name == "custom_cnn_attention":
+        if "custom_cnn_attention" not in config:
+            raise KeyError(
+                f"'custom_cnn_attention' section not found in config file at {config_path}."
+            )
+        model = return_custom_cnn_attention(config["custom_cnn_attention"], device)
     return model
 
 
@@ -99,3 +112,15 @@ def return_custom_cnn1(config, device):
     dropout_rate = float(config["dropout_rate"])
     num_classes = int(config["num_classes"])
     return CustomCNN1(dropout_rate=dropout_rate, num_classes=num_classes).to(device)
+
+
+def return_body_part_cnn(config, device):
+    return BodyPartCNN().to(device)
+
+
+def return_custom_cnn_attention(config, device):
+    dropout_rate = float(config["dropout_rate"])
+    num_classes = int(config["num_classes"])
+    return CustomCNNWithAttention(
+        dropout_rate=dropout_rate, num_classes=num_classes
+    ).to(device)
