@@ -113,14 +113,16 @@ def return_densenet(config, device):
     reduction = float(config["reduction"])
     return DenseNet(num_blocks, num_layers_per_block, growth_rate, reduction).to(device)
 
+
 def return_densenet121(config, device):
     num_classes = int(config["num_classes"])
     return DenseNet121(num_classes).to(device)
 
-  
+
 def return_densenet169(config, device):
     num_classes = int(config["num_classes"])
     return DenseNet169(num_classes).to(device)
+
 
 def return_resnet(config, device):
     # TODO: Implement this when the ResNet model is added
