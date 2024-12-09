@@ -144,9 +144,9 @@ def return_pretrained_densenet(config, device):
     variant = str(config["variant"])
     try:
         pretrained_densenet_version = PretrainedDenseNetVersion(variant)
-        return PretrainedDenseNet(num_classes, pretrained=pretrained, variant=pretrained_densenet_version).to(
-            device
-        )
+        return PretrainedDenseNet(
+            num_classes, pretrained=pretrained, variant=pretrained_densenet_version
+        ).to(device)
     except ValueError:
         print(f"Invalid variant: {variant}. Add to pre-trained DenseNet Version enum")
 

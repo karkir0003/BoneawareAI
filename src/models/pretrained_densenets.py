@@ -2,6 +2,7 @@ import torch.nn as nn
 from torchvision.models import densenet169, densenet121
 from enum import Enum
 
+
 class PretrainedDenseNetVersion(Enum):
     DENSENET_121 = "densenet121"
     DENSENET_169 = "densenet169"
