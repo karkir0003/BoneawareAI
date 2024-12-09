@@ -6,6 +6,7 @@ from models.densenet import DenseNet
 from models.custom_cnn import CustomCNN1
 from models.densenet169 import DenseNet169
 from models.custom_cnn import CustomCNN1, BodyPartCNN, CustomCNNWithAttention
+from models.densenet121 import DenseNet121
 from models.pretrained_densenets import PretrainedDenseNet, PretrainedDenseNetVersion
 
 # from models.resnet import ResNet
@@ -50,6 +51,12 @@ def get_model(model_name, device):
                 f"'densenet' section not found in config file at {config_path}."
             )
         model = return_densenet(config["densenet"], device)
+    elif model_name == "densenet121":
+        if "densenet121" not in config:
+            raise KeyError(
+                f"'densenet121' section not found in config file at {config_path}."
+            )
+        model = return_densenet121(config["densenet121"], device)
     elif model_name == "densenet169":
         if "densenet169" not in config:
             raise KeyError(
@@ -105,6 +112,11 @@ def return_densenet(config, device):
     growth_rate = int(config["growth_rate"])
     reduction = float(config["reduction"])
     return DenseNet(num_blocks, num_layers_per_block, growth_rate, reduction).to(device)
+
+
+def return_densenet121(config, device):
+    num_classes = int(config["num_classes"])
+    return DenseNet121(num_classes).to(device)
 
 
 def return_densenet169(config, device):
