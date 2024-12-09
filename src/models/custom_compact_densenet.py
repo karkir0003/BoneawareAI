@@ -72,7 +72,6 @@ class DenseNet(nn.Module):
 
         self.features = nn.Sequential(*blocks)
 
-        # Classification Layer (output one logit for binary classification)
         self.classifier = nn.Sequential(
             nn.AdaptiveAvgPool2d((1, 1)),
             nn.Flatten(),
