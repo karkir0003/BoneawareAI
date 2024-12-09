@@ -4,6 +4,7 @@ import configparser
 # IMPORT MODELS HERE
 from models.densenet import DenseNet
 from models.custom_cnn import CustomCNN1, BodyPartCNN, CustomCNNWithAttention
+from models.pretrained_densenets import PretrainedDenseNet, PretrainedDenseNetVersion
 
 # from models.resnet import ResNet
 # from models.vgg import VGG
@@ -47,6 +48,18 @@ def get_model(model_name, device):
                 f"'densenet' section not found in config file at {config_path}."
             )
         model = return_densenet(config["densenet"], device)
+    elif model_name == "pretrained_densenet169":
+        if "pretrained_densenet169" not in config:
+            raise KeyError(
+                f"'pretrained_densenet169' section not found in config file at {config_path}."
+            )
+        model = return_pretrained_densenet(config["pretrained_densenet169"], device)
+    elif model_name == "pretrained_densenet121":
+        if "pretrained_densenet121" not in config:
+            raise KeyError(
+                f"'pretrained_densenet121' section not found in config file at {config_path}."
+            )
+        model = return_pretrained_densenet(config["pretrained_densenet121"], device)
     elif model_name == "resnet":
         if "resnet" not in config:
             raise KeyError(
@@ -112,3 +125,18 @@ def return_custom_cnn_attention(config, device):
     return CustomCNNWithAttention(
         dropout_rate=dropout_rate, num_classes=num_classes
     ).to(device)
+
+
+def return_pretrained_densenet(config, device):
+    num_classes = int(config["num_classes"])
+    pretrained = bool(config["pretrained"])
+    variant = str(config["variant"])
+    try:
+        pretrained_densenet_version = PretrainedDenseNetVersion(variant)
+        return PretrainedDenseNet(num_classes, pretrained=pretrained, variant=pretrained_densenet_version).to(
+            device
+        )
+    except ValueError:
+        print(f"Invalid variant: {variant}. Add to pre-trained DenseNet Version enum")
+
+    return None
