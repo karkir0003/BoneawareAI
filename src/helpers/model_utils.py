@@ -8,6 +8,7 @@ from models.resnet import ResNet, ResNetVersion
 from models.resnet_scratch import get_resnet, MyResNetVersion, init_weights
 from models.densenet169 import DenseNet169
 from models.custom_cnn import CustomCNN1, BodyPartCNN, CustomCNNWithAttention
+from models.vgg_pretrained import get_vgg_pretrained, VGGPretrainedVersion
 from models.densenet121 import DenseNet121
 from models.pretrained_densenets import PretrainedDenseNet, PretrainedDenseNetVersion
 
@@ -95,6 +96,12 @@ def get_model(model_name, device):
         if "vgg" not in config:
             raise KeyError(f"'vgg' section not found in config file at {config_path}.")
         model = return_vgg(config["vgg"], device)
+    elif model_name == "vgg_pretrained":
+        if "vgg_pretrained" not in config:
+            raise KeyError(
+                f"'vgg_pretrained' section not found in config file at {config_path}."
+            )
+        model = return_vgg_pretrained(config["vgg_pretrained"], device)
     elif model_name == "custom_cnn1":
         if "custom_cnn1" not in config:
             raise KeyError(
@@ -173,6 +180,21 @@ def return_vgg(config, device):
     try:
         resnet_version = VGGVersion(model)
         model = get_vgg(num_classes, resnet_version)
+        if model:
+            return model.to(device)
+    except ValueError:
+        print(f"Invalid variant: {model}. Add to VGG Version enum")
+
+    return None
+
+
+def return_vgg_pretrained(config, device):
+    num_classes = int(config["num_classes"])
+    pretrained = config["pretrained"]
+    model = config["model"]
+    try:
+        vgg_version = VGGPretrainedVersion(model)
+        model = get_vgg_pretrained(num_classes, vgg_version, pretrained)
         if model:
             return model.to(device)
     except ValueError:
