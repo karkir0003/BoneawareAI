@@ -2,7 +2,7 @@ import os
 import configparser
 
 # IMPORT MODELS HERE
-from models.densenet import DenseNet
+from models.custom_compact_densenet import DenseNet
 from models.custom_cnn import CustomCNN1
 from models.resnet import ResNet, ResNetVersion
 from models.densenet169 import DenseNet169
@@ -46,12 +46,14 @@ def get_hyperparameters():
 def get_model(model_name, device):
     config, config_path = model_config_parser()
     model = None
-    if model_name == "densenet":
-        if "densenet" not in config:
+    if model_name == "custom_compact_densenet":
+        if "custom_compact_densenet" not in config:
             raise KeyError(
-                f"'densenet' section not found in config file at {config_path}."
+                f"'custom_compact_densenet' section not found in config file at {config_path}."
             )
-        model = return_densenet(config["densenet"], device)
+        model = return_custom_compact_densenet(
+            config["custom_compact_densenet"], device
+        )
     elif model_name == "densenet121":
         if "densenet121" not in config:
             raise KeyError(
@@ -107,7 +109,7 @@ def get_model(model_name, device):
     return model
 
 
-def return_densenet(config, device):
+def return_custom_compact_densenet(config, device):
     num_blocks = int(config["num_blocks"])
     num_layers_per_block = int(config["num_layers_per_block"])
     growth_rate = int(config["growth_rate"])

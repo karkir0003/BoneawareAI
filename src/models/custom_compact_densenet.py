@@ -54,7 +54,6 @@ class DenseNet(nn.Module):
         self.growth_rate = growth_rate
         in_channels = 2 * growth_rate
 
-        # Initial Convolution
         self.init_conv = nn.Sequential(
             nn.Conv2d(3, in_channels, kernel_size=7, stride=2, padding=3, bias=False),
             nn.BatchNorm2d(in_channels),
@@ -62,7 +61,6 @@ class DenseNet(nn.Module):
             nn.MaxPool2d(kernel_size=3, stride=2, padding=1),
         )
 
-        # DenseBlocks with Transition Layers
         blocks = []
         for i in range(num_blocks):
             blocks.append(DenseBlock(num_layers_per_block, in_channels, growth_rate))
@@ -74,17 +72,14 @@ class DenseNet(nn.Module):
 
         self.features = nn.Sequential(*blocks)
 
-        # Classification Layer (output one logit for binary classification)
         self.classifier = nn.Sequential(
             nn.AdaptiveAvgPool2d((1, 1)),
             nn.Flatten(),
-            nn.Linear(
-                in_channels, num_classes
-            ),  # num_classes = 1 for binary classification
+            nn.Linear(in_channels, num_classes),
         )
 
     def forward(self, x):
         x = self.init_conv(x)
         x = self.features(x)
         x = self.classifier(x)
-        return x.squeeze(-1)  # Squeeze to get shape [batch_size] (logits)
+        return x.squeeze(-1)
