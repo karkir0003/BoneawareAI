@@ -79,8 +79,9 @@ def get_model(model_name, device):
     elif model_name == "resnet":
         if "resnet" not in config:
             raise KeyError(
-                f"'resnet' section not found in config file at {config_path}.")
-        model = return_resnet(config['resnet'], device)
+                f"'resnet' section not found in config file at {config_path}."
+            )
+        model = return_resnet(config["resnet"], device)
     elif model_name == "vgg":
         if "vgg" not in config:
             raise KeyError(f"'vgg' section not found in config file at {config_path}.")
@@ -126,15 +127,17 @@ def return_densenet169(config, device):
 
 def return_resnet(config, device):
     # TODO: Implement this when the ResNet model is added
-    num_labels = int(config['num_labels'])
-    pretrained = bool(config['pretrained'])
-    variant = str(config['variant'])
+    num_labels = int(config["num_labels"])
+    pretrained = bool(config["pretrained"])
+    variant = str(config["variant"])
     try:
-      resnet_version = ResNetVersion(variant)
-      return ResNet(num_labels, pretrained=pretrained, variant=resnet_version).to(device)
+        resnet_version = ResNetVersion(variant)
+        return ResNet(num_labels, pretrained=pretrained, variant=resnet_version).to(
+            device
+        )
     except ValueError:
-      print(f"Invalid variant: {variant}. Add to ResNet Version enum")
-    
+        print(f"Invalid variant: {variant}. Add to ResNet Version enum")
+
     return None
 
 

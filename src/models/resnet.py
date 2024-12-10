@@ -19,12 +19,19 @@ Sources:
 
 from enum import Enum
 
+
 class ResNetVersion(Enum):
-    RESNET_18 = 'resnet18'
-    RESNET_34 = 'resnet34'
+    RESNET_18 = "resnet18"
+    RESNET_34 = "resnet34"
+
 
 class ResNet(nn.Module):
-    def __init__(self, num_labels: int, pretrained: bool=False, variant: ResNetVersion = ResNetVersion.RESNET_18):
+    def __init__(
+        self,
+        num_labels: int,
+        pretrained: bool = False,
+        variant: ResNetVersion = ResNetVersion.RESNET_18,
+    ):
         """
         Generate fine tuned resnet model
 
@@ -33,19 +40,21 @@ class ResNet(nn.Module):
             pretrained (bool): Should pretrained weights be used. Default to False
             variant (ResNetVersion): Which variant of Resnet. Default to Resnet 18
         """
-        super(ResNet, self).__init__() 
+        super(ResNet, self).__init__()
         # Initialize the model based on the variant
         if variant == ResNetVersion.RESNET_18:
             self.model = resnet18(pretrained=pretrained)
         elif variant == ResNetVersion.RESNET_34:
             self.model = resnet34(pretrained=pretrained)
         else:
-            raise ValueError(f"Invalid variant: {variant}. Choose from {list(ResNetVersion)}")
-        
+            raise ValueError(
+                f"Invalid variant: {variant}. Choose from {list(ResNetVersion)}"
+            )
+
         # freeze the parameters for every layer in resnet model
         for param in self.model.parameters():
-            param.requires_grad = False 
-        
+            param.requires_grad = False
+
         # replace final FC layer
         final_fc_in_features = self.model.fc.in_features
         self.model.fc = nn.Linear(final_fc_in_features, num_labels)
