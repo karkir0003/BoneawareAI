@@ -10,14 +10,14 @@ def get_aws_credentials():
     config = configparser.ConfigParser()
     # Point to the main directory
     main_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
-    config_path = os.path.join(main_dir, 'config.ini')
+    config_path = os.path.join(main_dir, "config.ini")
     if not os.path.exists(config_path):
         raise FileNotFoundError(f"Config file not found at {config_path}")
     config.read(config_path)
-    if 'default' not in config:
+    if "default" not in config:
         raise KeyError(f"'default' section not found in config file at {config_path}.")
-    aws_access_key_id = config['default']["aws_access_key_id"]
-    aws_secret_access_key = config['default']["aws_secret_access_key"]
+    aws_access_key_id = config["default"]["aws_access_key_id"]
+    aws_secret_access_key = config["default"]["aws_secret_access_key"]
     return aws_access_key_id, aws_secret_access_key
 
 
