@@ -5,7 +5,13 @@ import configparser
 from models.densenet import DenseNet
 from models.custom_cnn import CustomCNN1
 from models.resnet import ResNet, ResNetVersion
-# from models.vgg import VGG
+from models.densenet169 import DenseNet169
+from models.custom_cnn import CustomCNN1, BodyPartCNN, CustomCNNWithAttention
+from models.densenet121 import DenseNet121
+from models.pretrained_densenets import PretrainedDenseNet, PretrainedDenseNetVersion
+
+# from models.resnet import ResNet
+from models.vgg import get_vgg, VGGVersion
 
 
 def model_config_parser():
@@ -46,22 +52,57 @@ def get_model(model_name, device):
                 f"'densenet' section not found in config file at {config_path}."
             )
         model = return_densenet(config["densenet"], device)
+    elif model_name == "densenet121":
+        if "densenet121" not in config:
+            raise KeyError(
+                f"'densenet121' section not found in config file at {config_path}."
+            )
+        model = return_densenet121(config["densenet121"], device)
+    elif model_name == "densenet169":
+        if "densenet169" not in config:
+            raise KeyError(
+                f"'densenet169' section not found in config file at {config_path}."
+            )
+        model = return_densenet169(config["densenet169"], device)
+    elif model_name == "pretrained_densenet169":
+        if "pretrained_densenet169" not in config:
+            raise KeyError(
+                f"'pretrained_densenet169' section not found in config file at {config_path}."
+            )
+        model = return_pretrained_densenet(config["pretrained_densenet169"], device)
+    elif model_name == "pretrained_densenet121":
+        if "pretrained_densenet121" not in config:
+            raise KeyError(
+                f"'pretrained_densenet121' section not found in config file at {config_path}."
+            )
+        model = return_pretrained_densenet(config["pretrained_densenet121"], device)
     elif model_name == "resnet":
         if "resnet" not in config:
             raise KeyError(
                 f"'resnet' section not found in config file at {config_path}.")
         model = return_resnet(config['resnet'], device)
-    elif model_name == 'vgg':
-        if 'vgg' not in config:
-            raise KeyError(
-                f"'vgg' section not found in config file at {config_path}.")
-        # model = return_vgg(config['vgg'], device)
+    elif model_name == "vgg":
+        if "vgg" not in config:
+            raise KeyError(f"'vgg' section not found in config file at {config_path}.")
+        model = return_vgg(config["vgg"], device)
     elif model_name == "custom_cnn1":
         if "custom_cnn1" not in config:
             raise KeyError(
                 f"'custom_cnn1' section not found in config file at {config_path}."
             )
         model = return_custom_cnn1(config["custom_cnn1"], device)
+    elif model_name == "body_part_cnn":
+        if "body_part_cnn" not in config:
+            raise KeyError(
+                f"'body_part_cnn' section not found in config file at {config_path}."
+            )
+        model = return_body_part_cnn(config["body_part_cnn"], device)
+    elif model_name == "custom_cnn_attention":
+        if "custom_cnn_attention" not in config:
+            raise KeyError(
+                f"'custom_cnn_attention' section not found in config file at {config_path}."
+            )
+        model = return_custom_cnn_attention(config["custom_cnn_attention"], device)
     return model
 
 
@@ -71,6 +112,16 @@ def return_densenet(config, device):
     growth_rate = int(config["growth_rate"])
     reduction = float(config["reduction"])
     return DenseNet(num_blocks, num_layers_per_block, growth_rate, reduction).to(device)
+
+
+def return_densenet121(config, device):
+    num_classes = int(config["num_classes"])
+    return DenseNet121(num_classes).to(device)
+
+
+def return_densenet169(config, device):
+    num_classes = int(config["num_classes"])
+    return DenseNet169(num_classes).to(device)
 
 
 def return_resnet(config, device):
@@ -89,10 +140,48 @@ def return_resnet(config, device):
 
 def return_vgg(config, device):
     # TODO: Implement this when the VGG model is added
-    pass
+    # pass
+    num_classes = int(config["num_classes"])
+    model = config["model"]
+    try:
+        resnet_version = VGGVersion(model)
+        model = get_vgg(num_classes, resnet_version)
+        if model:
+            return model.to(device)
+    except ValueError:
+        print(f"Invalid variant: {model}. Add to VGG Version enum")
+
+    return None
 
 
 def return_custom_cnn1(config, device):
     dropout_rate = float(config["dropout_rate"])
     num_classes = int(config["num_classes"])
     return CustomCNN1(dropout_rate=dropout_rate, num_classes=num_classes).to(device)
+
+
+def return_body_part_cnn(config, device):
+    return BodyPartCNN().to(device)
+
+
+def return_custom_cnn_attention(config, device):
+    dropout_rate = float(config["dropout_rate"])
+    num_classes = int(config["num_classes"])
+    return CustomCNNWithAttention(
+        dropout_rate=dropout_rate, num_classes=num_classes
+    ).to(device)
+
+
+def return_pretrained_densenet(config, device):
+    num_classes = int(config["num_classes"])
+    pretrained = bool(config["pretrained"])
+    variant = str(config["variant"])
+    try:
+        pretrained_densenet_version = PretrainedDenseNetVersion(variant)
+        return PretrainedDenseNet(
+            num_classes, pretrained=pretrained, variant=pretrained_densenet_version
+        ).to(device)
+    except ValueError:
+        print(f"Invalid variant: {variant}. Add to pre-trained DenseNet Version enum")
+
+    return None
