@@ -50,7 +50,9 @@ def get_model(model_name, device):
             raise KeyError(
                 f"'custom_compact_densenet' section not found in config file at {config_path}."
             )
-        model = return_custom_compact_densenet(config["custom_compact_densenet"], device)
+        model = return_custom_compact_densenet(
+            config["custom_compact_densenet"], device
+        )
     elif model_name == "densenet121":
         if "densenet121" not in config:
             raise KeyError(

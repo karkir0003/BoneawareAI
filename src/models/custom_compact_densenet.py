@@ -75,9 +75,7 @@ class DenseNet(nn.Module):
         self.classifier = nn.Sequential(
             nn.AdaptiveAvgPool2d((1, 1)),
             nn.Flatten(),
-            nn.Linear(
-                in_channels, num_classes
-            ),
+            nn.Linear(in_channels, num_classes),
         )
 
     def forward(self, x):
