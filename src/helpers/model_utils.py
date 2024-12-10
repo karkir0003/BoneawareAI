@@ -5,7 +5,7 @@ import configparser
 from models.densenet import DenseNet
 from models.custom_cnn import CustomCNN1
 from models.resnet import ResNet, ResNetVersion
-from models.resnet_scratch import get_resnet, MyResNetVersion
+from models.resnet_scratch import get_resnet, MyResNetVersion, init_weights
 # from models.vgg import VGG
 
 
@@ -99,6 +99,7 @@ def return_resnet_scratch(config, device):
       resnet_version = MyResNetVersion(variant)
       model = get_resnet(num_labels, resnet_version)
       if (model):
+        init_weights(model)
         return model.to(device)
     except ValueError:
       print(f"Invalid variant: {variant}. Add to ResNet Version enum")

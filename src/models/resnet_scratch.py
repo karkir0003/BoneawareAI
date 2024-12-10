@@ -318,6 +318,43 @@ class MyResNet34(nn.Module):
         preds = self.layers(x)
         return preds.squeeze(-1)
 
+def init_weights(model: nn.Module):
+    """
+    Initializes the weights of the model using Xavier initialization.
+    Applies Xavier initialization to Conv2d and Linear layers in the model's layers and building blocks.
+    
+    Args:
+        model (nn.Module): The model whose weights are to be initialized.
+    """
+    # A helper function to initialize weights recursively
+    def initialize_layer_weights(layer):
+        if isinstance(layer, nn.Conv2d):
+            # Apply Xavier uniform initialization to Conv2d layers
+            nn.init.xavier_uniform_(layer.weight)
+            if layer.bias is not None:
+                nn.init.zeros_(layer.bias)
+        elif isinstance(layer, nn.Linear):
+            # Apply Xavier uniform initialization to Linear layers
+            nn.init.xavier_uniform_(layer.weight)
+            if layer.bias is not None:
+                nn.init.zeros_(layer.bias)
+    
+    # Traverse the model layers recursively to apply weight initialization
+    def traverse_modules(modules):
+        for module in modules:
+            if isinstance(module, nn.Module):
+                # Initialize weights for the current module if it's a Conv2d or Linear layer
+                initialize_layer_weights(module)
+                # If the module contains other layers, recursively initialize them
+                if isinstance(module, nn.Sequential):
+                    traverse_modules(module)
+                elif hasattr(module, 'children') and module.children():
+                    traverse_modules(module.children())
+    
+    # Apply the weight initialization to all layers in the model
+    traverse_modules(model.layers)
+    
+
 def get_resnet(num_classes, variant=MyResNetVersion.RESNET_18):
     if variant == MyResNetVersion.RESNET_18:
         return MyResNet18(num_classes)
