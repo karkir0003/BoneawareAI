@@ -5,6 +5,7 @@ import configparser
 from models.custom_compact_densenet import DenseNet
 from models.custom_cnn import CustomCNN1
 from models.resnet import ResNet, ResNetVersion
+from models.resnet_scratch import get_resnet, MyResNetVersion, init_weights
 from models.densenet169 import DenseNet169
 from models.custom_cnn import CustomCNN1, BodyPartCNN, CustomCNNWithAttention
 from models.densenet121 import DenseNet121
@@ -84,6 +85,12 @@ def get_model(model_name, device):
                 f"'resnet' section not found in config file at {config_path}."
             )
         model = return_resnet(config["resnet"], device)
+    elif model_name == "resnet_scratch":
+        if "resnet_scratch" not in config:
+            raise KeyError(
+                f"'resnet scratch' section not found in config file at {config_path}."
+            )
+        model = return_resnet_scratch(config["resnet_scratch"], device)
     elif model_name == "vgg":
         if "vgg" not in config:
             raise KeyError(f"'vgg' section not found in config file at {config_path}.")
@@ -137,6 +144,21 @@ def return_resnet(config, device):
         return ResNet(num_labels, pretrained=pretrained, variant=resnet_version).to(
             device
         )
+    except ValueError:
+        print(f"Invalid variant: {variant}. Add to ResNet Version enum")
+
+    return None
+
+
+def return_resnet_scratch(config, device):
+    num_labels = int(config["num_labels"])
+    variant = str(config["variant"])
+    try:
+        resnet_version = MyResNetVersion(variant)
+        model = get_resnet(num_labels, resnet_version)
+        if model:
+            init_weights(model)
+            return model.to(device)
     except ValueError:
         print(f"Invalid variant: {variant}. Add to ResNet Version enum")
 
