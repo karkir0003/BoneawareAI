@@ -82,13 +82,15 @@ def get_model(model_name, device):
     elif model_name == "resnet":
         if "resnet" not in config:
             raise KeyError(
-                f"'resnet' section not found in config file at {config_path}.")
-        model = return_resnet(config['resnet'], device)
+                f"'resnet' section not found in config file at {config_path}."
+            )
+        model = return_resnet(config["resnet"], device)
     elif model_name == "resnet_scratch":
         if "resnet_scratch" not in config:
             raise KeyError(
-            f"'resnet scratch' section not found in config file at {config_path}.")
-        model = return_resnet_scratch(config['resnet_scratch'], device)
+                f"'resnet scratch' section not found in config file at {config_path}."
+            )
+        model = return_resnet_scratch(config["resnet_scratch"], device)
     elif model_name == "vgg":
         if "vgg" not in config:
             raise KeyError(f"'vgg' section not found in config file at {config_path}.")
@@ -147,19 +149,21 @@ def return_resnet(config, device):
 
     return None
 
+
 def return_resnet_scratch(config, device):
-    num_labels = int(config['num_labels'])
-    variant = str(config['variant'])
+    num_labels = int(config["num_labels"])
+    variant = str(config["variant"])
     try:
-      resnet_version = MyResNetVersion(variant)
-      model = get_resnet(num_labels, resnet_version)
-      if (model):
-        init_weights(model)
-        return model.to(device)
+        resnet_version = MyResNetVersion(variant)
+        model = get_resnet(num_labels, resnet_version)
+        if model:
+            init_weights(model)
+            return model.to(device)
     except ValueError:
-      print(f"Invalid variant: {variant}. Add to ResNet Version enum")
-    
+        print(f"Invalid variant: {variant}. Add to ResNet Version enum")
+
     return None
+
 
 def return_vgg(config, device):
     # TODO: Implement this when the VGG model is added
