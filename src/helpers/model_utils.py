@@ -187,6 +187,7 @@ def return_vgg(config, device):
 
     return None
 
+
 def return_vgg_pretrained(config, device):
     num_classes = int(config["num_classes"])
     pretrained = config["pretrained"]
@@ -200,7 +201,6 @@ def return_vgg_pretrained(config, device):
         print(f"Invalid variant: {model}. Add to VGG Version enum")
 
     return None
-
 
 
 def return_custom_cnn1(config, device):
